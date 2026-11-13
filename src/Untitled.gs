@@ -1,4 +1,4 @@
-function aaBackupNow() { backupToGitHubNow(); }
+function aaRefLaunchTest() { refLaunchTest(); }
 
 /**
  * Sanctioned Tournament Referee Availability (Nov 12, 2026).
@@ -2012,3 +2012,96 @@ function backupToGitHub_() {
 
 /** Admin: back up to GitHub now. */
 function backupToGitHubNow() { console.log(backupToGitHub_()); }
+
+
+// ======================= Ref Room launch email (Nov 12, 2026) =======================
+// One-time email to every referee member on the academy (active + lapsed since 2020), signed by Adam.
+// refLaunchTest() sends one copy to Shaydon. refLaunchSendAll() sends the rest in batches (re-run is safe:
+// each address is flagged rl:<email> once sent). Remove this section after the launch.
+const RL_SUBJECT = 'The USBOXLA Ref Room is open – get set for the season';
+const RL_FROM_NAME = 'Adam Gardner – USBOXLA Referee-in-Chief';
+const RL_REPLY_TO = 'a.gardner@usboxla.com';
+
+function rlFirst_(f) {
+  f = String(f || '').trim().split(' ')[0];
+  if (f.length < 2) return '';
+  return f.charAt(0).toUpperCase() + f.slice(1).toLowerCase();
+}
+
+function rlHtml_(first) {
+  const hi = first ? 'Hi ' + first + ',' : 'Hi there,';
+  const step = function (n, b, t) {
+    return '<tr><td valign="top" width="34" style="padding:0 10px 12px 0"><div style="width:28px;height:28px;line-height:28px;border-radius:14px;background:#0A1D3F;color:#fff;text-align:center;font-weight:bold">' + n + '</div></td>' +
+      '<td style="padding:3px 0 12px;font-size:15px;line-height:1.45"><b>' + b + '</b> ' + t + '</td></tr>';
+  };
+  const li = function (t) {
+    return '<tr><td valign="top" style="padding:0 10px 10px 0;color:#C8102E;font-weight:bold">&#9733;</td><td style="padding:0 0 10px;font-size:15px;line-height:1.45">' + t + '</td></tr>';
+  };
+  return '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#F3F5F9;font-family:Arial,Helvetica,sans-serif;color:#1d2430">' +
+    '<tr><td align="center" style="padding:24px 12px">' +
+    '<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;background:#ffffff;border-radius:10px;overflow:hidden">' +
+    '<tr><td style="background:#0A1D3F;padding:22px 24px"><img src="https://stats.usboxla.com/assets/usboxla-shield.png" alt="USBOXLA" width="44" height="44" style="display:inline-block;vertical-align:middle;border:0">' +
+      '<span style="display:inline-block;vertical-align:middle;margin-left:10px;color:#ffffff;font-size:13px;font-weight:bold;letter-spacing:2px;text-transform:uppercase">USBOXLA Referees</span></td></tr>' +
+    '<tr><td style="background:#C8102E;height:5px;line-height:5px;font-size:0">&nbsp;</td></tr>' +
+    '<tr><td style="padding:28px 28px 6px">' +
+      '<h1 style="margin:0 0 14px;font-size:26px;line-height:1.2;color:#0A1D3F">The Ref Room is open</h1>' +
+      '<p style="margin:0 0 14px;font-size:16px;line-height:1.5">' + hi + '</p>' +
+      '<p style="margin:0 0 14px;font-size:16px;line-height:1.5">Everything you need as a USBOXLA referee now lives in one place: your <b>Ref Room</b> at ' +
+        '<a href="https://academy.usboxla.com/ref-room/" style="color:#0A1D3F">academy.usboxla.com/ref-room</a>. Log in with your academy account and you\'ll see four boxes:</p>' +
+      '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">' +
+        step(1, 'Waiver –', 'we updated the Referee and Coach waiver. Please sign the new one (even if you signed before).') +
+        step(2, 'Level 1 course –', 'finish (or renew) your online certification for the 2027 rule book. There are a few changes, so get prepared for the upcoming season.') +
+        step(3, 'Referee membership –', 'keep it active. If yours has lapsed, the Ref Room has a renew link.') +
+        step(4, 'Get paid (BILL) –', 'fill in the short payment form once so we can pay you electronically.') +
+      '</table></td></tr>' +
+    '<tr><td style="padding:4px 28px 0"><h2 style="margin:0 0 10px;font-size:19px;color:#0A1D3F">Then when you\'re in the Ref Room you can:</h2>' +
+      '<table role="presentation" cellpadding="0" cellspacing="0" border="0">' +
+        li('Select which <b>sanctioned tournaments</b> you\'d like to work this season.') +
+        li('Add a <b>headshot</b> and fill in your profile so we all know who\'s who on the floor.') +
+        li('Join the <b>ref message board</b> on GroupMe. Each tournament you\'re approved for also gets its own chat.') +
+        li('New to the USBOXLA Game Sheet System? Try <a href="https://academy.usboxla.com/gamesheet-practice/" style="color:#0A1D3F"><b>practice mode</b></a>.') +
+      '</table></td></tr>' +
+    '<tr><td align="center" style="padding:14px 28px 24px"><a href="https://academy.usboxla.com/ref-room/" style="display:inline-block;background:#C8102E;color:#ffffff;text-decoration:none;font-weight:bold;font-size:16px;padding:14px 32px;border-radius:6px">Open the Ref Room</a></td></tr>' +
+    '<tr><td style="padding:0 28px 26px;font-size:15px;line-height:1.5">Questions? Reply to this email, or call/text me at <b>647-454-0342</b>.<br><br>' +
+      'Adam Gardner<br><span style="color:#5d6570">USBOXLA Referee-in-Chief</span></td></tr>' +
+    '</table></td></tr></table>';
+}
+
+function rlText_(first) {
+  return (first ? 'Hi ' + first + ',' : 'Hi there,') + '\n\n' +
+    'Everything you need as a USBOXLA referee now lives in one place: your Ref Room at https://academy.usboxla.com/ref-room/. Log in with your academy account and you\'ll see four boxes:\n\n' +
+    '1. Waiver – we updated the Referee and Coach waiver. Please sign the new one (even if you signed before).\n' +
+    '2. Level 1 course – finish (or renew) your online certification for the 2027 rule book. There are a few changes, so get prepared for the upcoming season.\n' +
+    '3. Referee membership – keep it active. If yours has lapsed, the Ref Room has a renew link.\n' +
+    '4. Get paid (BILL) – fill in the short payment form once so we can pay you electronically.\n\n' +
+    'Then when you\'re in the Ref Room you can:\n- Select which sanctioned tournaments you\'d like to work this season.\n' +
+    '- Add a headshot and fill in your profile so we all know who\'s who on the floor.\n' +
+    '- Join the ref message board on GroupMe. Each tournament you\'re approved for also gets its own chat.\n' +
+    '- New to the USBOXLA Game Sheet System? Try practice mode: https://academy.usboxla.com/gamesheet-practice/\n\n' +
+    'Open the Ref Room: https://academy.usboxla.com/ref-room/\n\n' +
+    'Questions? Reply to this email, or call/text me at 647-454-0342.\n\nAdam Gardner\nUSBOXLA Referee-in-Chief';
+}
+
+function rlSend_(to, first) {
+  MailApp.sendEmail({ to: to, subject: RL_SUBJECT, htmlBody: rlHtml_(first), body: rlText_(first), name: RL_FROM_NAME, replyTo: RL_REPLY_TO });
+}
+
+/** Admin: one test copy to Shaydon. */
+function refLaunchTest() { rlSend_('shaydon@usboxla.com', 'Shaydon'); console.log('Test sent to shaydon@usboxla.com'); }
+
+/** Admin: send to everyone on REF_LAUNCH_LIST not yet sent. Safe to re-run; stops after ~5 minutes or when the mail quota runs low. */
+function refLaunchSendAll() {
+  const props = PropertiesService.getScriptProperties(), start = Date.now();
+  let sent = 0, skipped = 0, failed = [];
+  for (let i = 0; i < REF_LAUNCH_LIST.length; i++) {
+    const e = String(REF_LAUNCH_LIST[i][0]).trim().toLowerCase(), key = 'rl:' + e;
+    if (props.getProperty(key)) { skipped++; continue; }
+    if (Date.now() - start > 300000 || MailApp.getRemainingDailyQuota() < 20) break;
+    try { rlSend_(e, rlFirst_(REF_LAUNCH_LIST[i][1])); props.setProperty(key, new Date().toISOString()); sent++; }
+    catch (err) { failed.push(e + ': ' + err.message); }
+  }
+  const left = REF_LAUNCH_LIST.filter(function (r) { return !props.getProperty('rl:' + String(r[0]).trim().toLowerCase()); }).length;
+  console.log('Sent ' + sent + ', already sent ' + skipped + ', failed ' + failed.length + ', still to send ' + left + ', quota left ' + MailApp.getRemainingDailyQuota());
+  if (failed.length) console.log(failed.join('\n'));
+}
+const REF_LAUNCH_LIST = [];   // filled in after the test is approved

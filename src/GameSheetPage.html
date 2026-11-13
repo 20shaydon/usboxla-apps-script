@@ -1,0 +1,1596 @@
+<!-- THIS FILE IS THE SOURCE (Nov 12, 2026). Edit GameSheetPage.html directly here in Apps Script. The old gamesheet.src.html / build_project.py build is retired (those files no longer exist) – never paste a rebuilt page over this file. To undo a change, roll back with Deploy › Manage deployments › an earlier version, or Project History. -->
+<title>USBOXLA GAME SHEET SYSTEM</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;0,800;1,800&family=Barlow:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: tablet-first. Navy scoreboard bar → step tabs (Check-in / Game / Final) →
+   check-in: two roster columns; game: two team columns with big action buttons + period strip + event log; final: box score + sign-off. */
+:root {
+  --navy: #0A1D3F;
+  --blue: #005EC4;
+  --red: #C8102E;
+  --gold: #E2B54B;
+  --ok: #1B7F45;
+  --bg: #EEF2F7;
+  --surface: #FFFFFF;
+  --surface-2: #E6ECF5;
+  --fg: #0F1A2E;
+  --muted: #5A6577;
+  --line: #D3DAE6;
+  --bad-bg: #FDECEE;
+  --ok-bg: #E7F5EC;
+  --display: "Barlow Condensed", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  --body: "Barlow", "Helvetica Neue", Arial, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0B1220; --surface: #131C2E; --surface-2: #1B2740; --fg: #E8EDF6; --muted: #9AA6BA; --line: #2A3754;
+    --bad-bg: #3A1720; --ok-bg: #12301F; --ok: #4CC285; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0B1220; --surface: #131C2E; --surface-2: #1B2740; --fg: #E8EDF6; --muted: #9AA6BA; --line: #2A3754;
+  --bad-bg: #3A1720; --ok-bg: #12301F; --ok: #4CC285; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 16px; line-height: 1.4; -webkit-tap-highlight-color: transparent; }
+button { font: inherit; color: inherit; cursor: pointer; }
+:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+.sample.syncbar { background: var(--surface-2); color: var(--muted); }
+.sample.syncbar.off { background: #FFD25A; color: #1b1300; }
+.days { display: flex; flex-wrap: wrap; gap: 8px; }
+.days button { border: 2px solid var(--line); background: var(--surface); border-radius: 8px; padding: 8px 14px; font-weight: 700; }
+.days button[aria-pressed="true"] { border-color: var(--blue); background: color-mix(in srgb, var(--blue) 12%, var(--surface)); }
+.setup-rinks button small.fac { display: block; }
+.tl img, .badge img { width: 100%; height: 100%; object-fit: contain; display: block; background: #fff; border-radius: 6px; }
+.rink-h b { white-space: nowrap; }
+.rink-h small { text-align: right; }
+.roster li.no-roster { display: block; padding: 14px; color: var(--red); font-weight: 600; background: none; }
+body.loading header.board, body.loading .queue, body.loading .steps, body.loading main { display: none; }
+.sample { background: #FFD25A; color: #1b1300; font-size: 12px; font-weight: 600; text-align: center; padding: 5px 16px; }
+
+/* scoreboard */
+.board { background: var(--navy); color: #fff; position: sticky; top: env(safe-area-inset-top, 0px); z-index: 10; }
+.board-in { max-width: 1200px; margin: 0 auto; padding: 12px 16px 12px; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 12px; align-items: center; }
+.titlebar { background: var(--red); border-bottom: 4px solid #fff; }
+.titlebar-in { max-width: 1200px; margin: 0 auto; padding: 10px 16px; }
+.meta-line { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px 16px; font-size: 13px; }
+.meta-line .mode.score { background: rgba(255,255,255,.22); }
+.meta-line .brand { display: flex; align-items: center; gap: 12px; }
+.meta-line .brand img { height: 58px; width: auto; filter: drop-shadow(0 2px 4px rgba(0,0,0,.35)); }
+.meta-line .brand b { display: block; font-family: var(--display); font-style: italic; font-weight: 800; font-size: clamp(24px, 3.4vw, 32px); line-height: 1; letter-spacing: .03em; }
+.meta-line .brand small { display: block; font-size: 11px; font-weight: 700; letter-spacing: .16em; text-transform: uppercase; opacity: .75; margin-top: 3px; }
+.meta-line .info { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px 12px; text-align: right; }
+.meta-line #game-meta { opacity: .95; font-weight: 500; }
+.meta-line .event-logo { height: 58px; width: 58px; flex: none; object-fit: contain; background: #fff; border-radius: 8px; padding: 4px; box-shadow: 0 2px 6px rgba(0,0,0,.3); order: 2; }
+.meta-line .brand { order: 1; flex: 1 1 0; min-width: 0; }
+.meta-line .info { order: 3; flex-basis: 100%; justify-content: flex-start; text-align: left; }
+.meta-line:not(:has(.event-logo:not([hidden]))) .info { flex-basis: auto; justify-content: flex-end; text-align: right; }
+.meta-line .event-logo[hidden] { display: none; }
+.setup-logos { display: flex; justify-content: center; align-items: center; gap: 18px; }
+.setup-logos .event-logo { height: 84px; width: 84px; object-fit: contain; background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 6px; }
+.setup-logos .event-logo[hidden] { display: none; }
+.mode { font-weight: 700; letter-spacing: .08em; text-transform: uppercase; font-size: 11px; padding: 2px 8px; border-radius: 2px; background: var(--gold); color: #1b1300; }
+.mode.score { background: rgba(255,255,255,.2); color: #fff; }
+.tm { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.tm.away { justify-content: flex-end; text-align: right; }
+.tm .badge { width: 40px; height: 40px; flex: none; }
+.tm .nm { min-width: 0; }
+.tm .nm b { display: block; font-family: var(--display); font-weight: 800; font-size: clamp(18px, 2.6vw, 26px); line-height: 1; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tm .nm small { font-size: 12px; opacity: .75; letter-spacing: .08em; text-transform: uppercase; }
+.score { display: flex; align-items: center; gap: 14px; font-family: var(--display); font-weight: 800; font-size: clamp(44px, 7vw, 64px); line-height: 1; font-variant-numeric: tabular-nums; }
+.score .per { font-size: 14px; font-weight: 700; letter-spacing: .1em; text-align: center; color: var(--gold); line-height: 1.2; }
+.score .per span { display: block; color: #fff; opacity: .7; font-size: 11px; }
+
+/* steps */
+.steps { background: var(--surface); border-bottom: 1px solid var(--line); }
+.steps-in { max-width: 1200px; margin: 0 auto; padding-inline: 16px; display: flex; gap: 4px; overflow-x: auto; }
+.steps button { background: none; border: 0; border-bottom: 3px solid transparent; padding: 14px 14px 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; font-size: 14px; color: var(--muted); white-space: nowrap; }
+.steps button[aria-current="step"] { color: var(--fg); border-bottom-color: var(--blue); }
+.steps button:disabled { opacity: .4; cursor: not-allowed; }
+.steps .n { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--surface-2); margin-right: 6px; font-size: 12px; }
+.steps button[aria-current="step"] .n { background: var(--blue); color: #fff; }
+.steps .done .n { background: var(--ok); color: #fff; }
+
+main { max-width: 1200px; margin: 0 auto; padding: 18px 16px 48px; }
+.panel[hidden] { display: none; }
+.two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; min-width: 0; }
+.card-h { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+.card-h h2 { margin: 0; font-family: var(--display); font-weight: 800; font-size: 22px; text-transform: uppercase; display: flex; align-items: center; gap: 8px; }
+.card-h h2 svg { width: 28px; height: 28px; }
+.count { font-weight: 700; font-variant-numeric: tabular-nums; }
+.count.okc { color: var(--ok); }
+.hint { font-size: 14px; color: var(--muted); margin: 0 0 14px; }
+
+/* check-in roster */
+.roster { list-style: none; margin: 0; padding: 0; }
+.roster li { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto auto; gap: 10px; align-items: center; padding: 8px 14px; border-bottom: 1px solid var(--line); }
+.roster li:last-child { border-bottom: 0; }
+.roster input.jn { width: 68px; font: 700 22px var(--display); text-align: center; padding: 6px 4px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface-2); color: var(--fg); }
+.roster .pn b { display: block; font-weight: 600; }
+.roster .pn small { font-size: 12px; font-weight: 700; letter-spacing: .04em; }
+.v-ok { color: var(--ok); }
+.v-bad { color: var(--red); }
+.roster li.bad { background: var(--bad-bg); }
+.dress { min-width: 112px; padding: 10px 12px; border-radius: 6px; border: 2px solid var(--line); background: var(--surface); font-weight: 700; font-size: 14px; }
+.dress[aria-pressed="true"] { background: var(--ok); border-color: var(--ok); color: #fff; }
+.dress:disabled { opacity: .5; cursor: not-allowed; }
+.gk { width: 48px; height: 44px; border-radius: 6px; border: 2px solid var(--line); background: var(--surface); font: 800 18px var(--display); color: var(--muted); }
+.gk[aria-pressed="true"] { background: var(--gold); border-color: var(--gold); color: #1b1300; }
+.gk:disabled { opacity: .35; cursor: not-allowed; }
+.pick .g { display: inline-block; margin-left: 4px; font-size: 10px; font-weight: 800; background: var(--gold); color: #1b1300; border-radius: 2px; padding: 0 4px; vertical-align: 2px; }
+.ej { font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; background: var(--red); color: #fff; padding: 1px 5px; border-radius: 2px; vertical-align: 2px; }
+.goalies { font-size: 13px; color: var(--muted); font-weight: 600; }
+.so-note { padding: 12px 14px; font-size: 14px; color: var(--muted); border-top: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.so-note b { color: var(--fg); }
+.so-note .del { border: 1px solid var(--line); background: var(--surface); border-radius: 4px; padding: 6px 10px; font-size: 13px; }
+.checkin-foot { margin-top: 16px; display: grid; gap: 14px; }
+.officials { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; padding: 14px; align-items: start; }
+.field select:disabled, .field input:disabled { opacity: .7; }
+.field textarea { font: 500 16px var(--body); padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--fg); width: 100%; resize: vertical; }
+.off-note { margin: 0; padding: 0 14px 4px; font-weight: 600; color: var(--red); }
+.off-note:empty { display: none; }
+.np-reasons { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 14px; }
+.np-reasons .pick { text-align: left; padding: 12px 14px; }
+.np-reasons .pick b { font: 800 18px var(--display); text-transform: uppercase; }
+.np-reasons .pick small { white-space: normal; margin-top: 4px; }
+.np-warn { padding: 12px 14px; border-radius: 6px; background: var(--bad-bg); color: var(--red); font-weight: 700; margin-bottom: 14px; }
+.np-box { padding: 16px; display: grid; gap: 8px; }
+.sir-open { display: flex; gap: 12px; align-items: center; justify-content: space-between; margin: 0 14px 10px; }
+.sir-done { margin: 0 14px 10px; padding: 10px 12px; border-radius: 10px; background: #E8F5EC; color: #14532d; font-weight: 600; }
+.sheet-card > * { min-width: 0; }
+.help-chip { background: #FFD25A !important; color: #1b1300 !important; border-color: #FFD25A !important; }
+.guide-card { max-width: 640px; }
+.guide-top { display: flex; justify-content: space-between; align-items: center; }
+.guide-body p { margin: 0 0 10px; font-size: 18px; line-height: 1.45; }
+.guide-body ol { margin: 0; padding-left: 22px; font-size: 18px; line-height: 1.5; }
+.guide-body li { margin-bottom: 8px; }
+.guide-body .key { display: inline-block; padding: 2px 10px; border-radius: 6px; background: var(--blue); color: #fff; font: 800 15px var(--display); text-transform: uppercase; letter-spacing: .03em; }
+.guide-body .key.ghost { background: var(--surface); color: var(--fg); border: 2px solid var(--line); }
+.guide-body .tip { background: #FFF7D6; border-left: 4px solid #E0A800; padding: 10px 12px; border-radius: 6px; font-size: 16px; margin-top: 12px; }
+.guide-dots { display: flex; gap: 8px; justify-content: center; }
+.guide-dots button { width: 12px; height: 12px; border-radius: 50%; border: 0; background: var(--line); padding: 0; }
+.guide-dots button.on { background: var(--blue); }
+.guide-nudge { margin: 0 0 10px; font-size: 14px; font-weight: 600; }
+.sheet-card textarea { box-sizing: border-box; max-width: 100%; }
+.sir-rec { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
+.sir-rec .rec-on { background: #C8102E; color: #fff; border-color: #C8102E; }
+.np-box b { font: 800 22px var(--display); text-transform: uppercase; }
+.np-box p { margin: 0; }
+.hq-flag { display: block; font-size: 12px; font-weight: 700; color: var(--red); }
+.hq-alerts { margin: 0 0 16px; }
+.hq-alert { border: 2px solid var(--red); background: var(--bad-bg); border-radius: 8px; padding: 12px 14px; margin-bottom: 10px; }
+.hq-alert.seen { border-width: 1px; border-color: var(--line); background: var(--surface); }
+.hq-alert-h { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
+.hq-alert-h b { color: var(--red); font-size: 16px; }
+.hq-alert.seen .hq-alert-h b { color: inherit; font-size: 14px; }
+.hq-alert small { display: block; color: var(--muted); margin-top: 2px; }
+.hq-alert-text { margin-top: 8px; white-space: pre-wrap; font-size: 14px; }
+.hq-alert-btns { display: flex; gap: 6px; }
+.hq-seen-toggle { background: none; border: 0; color: var(--muted); font-weight: 700; padding: 4px 0; cursor: pointer; }
+.big.np { background: var(--surface); color: var(--red); border: 2px solid var(--red); }
+.field { display: grid; gap: 4px; }
+.field label, .lbl { font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.field input, .field select { font: 500 16px var(--body); padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--fg); width: 100%; }
+.confirm { display: flex; gap: 12px; align-items: flex-start; padding: 14px; font-weight: 600; }
+.confirm input { width: 26px; height: 26px; flex: none; margin: 0; accent-color: var(--blue); }
+.big { font: 800 20px var(--display); letter-spacing: .06em; text-transform: uppercase; padding: 16px 22px; border-radius: 8px; border: 0; background: var(--blue); color: #fff; }
+.big:disabled { background: var(--surface-2); color: var(--muted); cursor: not-allowed; }
+.big.red { background: var(--red); }
+.tl { display: inline-block; width: 28px; height: 28px; flex: none; }
+.tl svg { width: 100%; height: 100%; display: block; }
+.badge.tl { width: 40px; height: 40px; }
+.linkish { background: none; border: 0; padding: 0; font: inherit; font-weight: 700; text-decoration: underline; color: inherit; }
+.rinkchip { background: #fff; color: var(--red); border: 0; border-radius: 3px; padding: 3px 10px; font: 800 14px var(--display); letter-spacing: .06em; text-transform: uppercase; }
+.rinkchip[hidden] { display: none; }
+.countdown { font-weight: 700; }
+.countdown.late { color: #FFD25A; }
+.queue { background: var(--surface); border-bottom: 1px solid var(--line); }
+.queue-in { max-width: 1200px; margin: 0 auto; padding: 8px 16px; display: flex; gap: 8px; overflow-x: auto; align-items: stretch; }
+.queue-in .ql { font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); align-self: center; white-space: nowrap; margin-right: 4px; }
+.qg { border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; min-width: 170px; font-size: 13px; background: var(--surface); flex: none; }
+.qg b { font-family: var(--display); font-size: 16px; }
+.qg small { display: block; color: var(--muted); }
+.qg .st { font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; padding: 1px 6px; border-radius: 2px; margin-left: 6px; background: var(--surface-2); color: var(--muted); }
+.qg.now { border: 2px solid var(--blue); }
+.qg.now .st { background: var(--blue); color: #fff; }
+.qg.done { opacity: .6; }
+.qg.done .st { background: var(--ok); color: #fff; }
+/* HQ */
+#hq { max-width: 1280px; margin: 0 auto; padding: 18px 16px 48px; }
+#hq[hidden] { display: none; }
+.hq-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 14px; }
+.hq-head h1 { margin: 0; font-family: var(--display); font-weight: 800; font-size: 34px; text-transform: uppercase; }
+.rinks { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.rink { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; min-width: 0; border-top: 5px solid var(--blue); }
+.rink.warn { border-top-color: var(--gold); }
+.rink.idle { border-top-color: var(--line); }
+.rink-h { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+.rink-h b { font-family: var(--display); font-weight: 800; font-size: 22px; text-transform: uppercase; }
+.rink-h small { color: var(--muted); font-size: 12px; font-weight: 600; }
+.rink-b { padding: 12px; display: grid; gap: 8px; }
+.rline { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; gap: 8px; align-items: center; font-weight: 600; }
+.rline span.nm { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rline .sc { font-family: var(--display); font-weight: 800; font-size: 28px; font-variant-numeric: tabular-nums; }
+.rstatus { font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; padding: 3px 8px; border-radius: 2px; justify-self: start; background: var(--surface-2); color: var(--muted); }
+.rstatus.live { background: var(--blue); color: #fff; }
+.rstatus.tie { background: var(--gold); color: #1b1300; }
+.rstatus.final { background: var(--ok); color: #fff; }
+.rnext { font-size: 13px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 8px; }
+.late-note { font-size: 12px; font-weight: 700; color: var(--red); }
+tr.entered td { color: var(--muted); text-decoration: line-through; }
+tr.entered td:last-child { text-decoration: none; }
+.mini-btn { border: 1px solid var(--line); background: var(--surface); border-radius: 4px; padding: 6px 10px; font-size: 13px; font-weight: 700; }
+.mini-btn.go { background: var(--blue); color: #fff; border-color: var(--blue); }
+/* setup */
+.setup { position: fixed; inset: 0; z-index: 70; background: var(--bg); display: grid; place-items: center; padding: 16px; overflow: auto; }
+.setup[hidden] { display: none; }
+.setup-card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 24px; width: 100%; max-width: 560px; display: grid; gap: 10px; }
+.setup-card #setup-shield { height: 84px; width: auto; }
+.setup-card h1 { margin: 0; text-align: center; font-family: var(--display); font-weight: 800; font-size: 32px; text-transform: uppercase; }
+.setup-card .hint { text-align: center; }
+.setup-rinks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.setup-rinks button { border: 2px solid var(--line); background: var(--surface); border-radius: 8px; padding: 14px; text-align: left; }
+.setup-rinks button b { display: block; font: 800 26px var(--display); text-transform: uppercase; }
+.setup-rinks button small { color: var(--muted); }
+body.hq-mode .board-in, body.hq-mode .queue, body.hq-mode .steps, body.hq-mode #tablet { display: none; }
+@media (max-width: 1000px) { .rinks { grid-template-columns: repeat(2, minmax(0, 1fr)); } .officials { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .rinks { grid-template-columns: 1fr; } }
+.big.tie { background: var(--gold); color: #1b1300; }
+.big.ghost { background: var(--surface); color: var(--fg); border: 2px solid var(--line); }
+.row-end { display: flex; flex-wrap: wrap; gap: 12px; justify-content: flex-end; align-items: center; }
+.blocker { font-size: 14px; color: var(--red); font-weight: 600; }
+
+/* live game */
+.periods { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+.periods button { min-width: 64px; padding: 12px 14px; border-radius: 6px; border: 2px solid var(--line); background: var(--surface); font: 800 20px var(--display); }
+.periods button[aria-pressed="true"] { background: var(--navy); color: #fff; border-color: var(--navy); }
+.live-team { padding: 14px; display: grid; gap: 12px; }
+.acts { display: grid; grid-template-columns: 2fr 1fr; gap: 10px; }
+.act { padding: 22px 12px; border-radius: 8px; border: 0; font: 800 26px var(--display); letter-spacing: .04em; text-transform: uppercase; color: #fff; background: var(--blue); }
+.act.pen { background: var(--surface-2); color: var(--fg); border: 2px solid var(--line); font-size: 22px; }
+.act:active { transform: scale(.98); }
+.mini-stats { font-size: 14px; color: var(--muted); display: flex; gap: 16px; flex-wrap: wrap; }
+.mini-stats b { color: var(--fg); }
+.log { margin-top: 16px; }
+.log ol { list-style: none; margin: 0; padding: 0; }
+.log li { display: grid; grid-template-columns: 54px 70px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--line); font-size: 15px; }
+.log li:last-child { border-bottom: 0; }
+.log .pp { font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
+.log .kind { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; padding: 3px 7px; border-radius: 2px; text-align: center; color: #fff; background: var(--blue); }
+.log .kind.p { background: var(--red); }
+.log .desc small { display: block; color: var(--muted); font-size: 13px; }
+.log .del { border: 1px solid var(--line); background: var(--surface); border-radius: 4px; padding: 8px 12px; font-size: 13px; color: var(--muted); }
+.log .del.add { color: var(--blue); border-color: var(--blue); font-weight: 700; }
+.log .del[data-edit] { color: var(--fg); font-weight: 600; }
+.log-btns { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.log li.empty { display: block; padding: 18px 14px; color: var(--muted); }
+
+/* picker sheet */
+.sheet { position: fixed; inset: 0; z-index: 50; display: grid; place-items: end center; background: rgba(5, 12, 28, .55); padding: 16px; }
+.sheet[hidden] { display: none; }
+.sheet-card { background: var(--surface); width: 100%; max-width: 860px; max-height: calc(100% - 20px); overflow: auto; border-radius: 12px; padding: 18px; display: grid; gap: 14px;
+  margin-bottom: env(safe-area-inset-bottom, 0px); }
+.sheet-card h3 { margin: 0; font-family: var(--display); font-weight: 800; font-size: 28px; text-transform: uppercase; }
+.sheet-card .sub { margin: -8px 0 0; color: var(--muted); font-size: 14px; }
+.picks { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 10px; }
+.pick { border: 2px solid var(--line); background: var(--surface); border-radius: 8px; padding: 10px 6px; text-align: center; }
+.pick b { display: block; font: 800 34px var(--display); line-height: 1; }
+.pick small { display: block; font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pick.sel { border-color: var(--blue); background: color-mix(in srgb, var(--blue) 12%, var(--surface)); }
+.pick.wide { grid-column: span 2; display: grid; place-items: center; font-weight: 700; }
+.pick:disabled { opacity: .35; }
+.trail { display: flex; flex-wrap: wrap; gap: 8px; font-size: 14px; }
+.trail span { background: var(--surface-2); padding: 4px 10px; border-radius: 999px; font-weight: 600; }
+.sheet-foot { display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; align-items: center; }
+.time { display: flex; align-items: center; gap: 8px; }
+.time input { width: 110px; font: 700 22px var(--display); text-align: center; padding: 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface-2); color: var(--fg); }
+.codes { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.codes button { border: 2px solid var(--line); background: var(--surface); border-radius: 8px; padding: 10px; text-align: left; }
+.codes button b { font-family: var(--display); font-size: 20px; margin-right: 6px; }
+.codes button.sel, .mins button.sel { border-color: var(--red); background: color-mix(in srgb, var(--red) 10%, var(--surface)); }
+.mins { display: flex; gap: 8px; flex-wrap: wrap; }
+.mins button { border: 2px solid var(--line); background: var(--surface); border-radius: 8px; padding: 10px 18px; font: 800 20px var(--display); }
+
+/* final */
+.box { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+th { font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); text-align: right; padding: 10px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+td { text-align: right; padding: 9px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; }
+td.tot, th.tot { font-weight: 800; }
+.final-grid { display: grid; gap: 16px; }
+.tm-result { padding: 16px; display: grid; gap: 10px; }
+.tm-result .line { font: 800 26px var(--display); text-transform: uppercase; }
+.tm-result code { font: 600 16px ui-monospace, Menlo, Consolas, monospace; background: var(--surface-2); padding: 10px 12px; border-radius: 6px; display: block; white-space: normal; }
+.locked { padding: 14px 16px; border-radius: 6px; background: var(--ok-bg); color: var(--ok); font-weight: 700; }
+.confirm-box { padding: 12px 14px; border-radius: 6px; background: var(--bad-bg); display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; font-weight: 600; }
+.confirm-box[hidden] { display: none; }
+.toast { position: fixed; left: 50%; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--navy); color: #fff; padding: 10px 16px; border-radius: 6px; font-weight: 600; z-index: 60; }
+.toast[hidden] { display: none; }
+
+.mins.seg button.sel { border-color: var(--blue); background: color-mix(in srgb, var(--blue) 12%, var(--surface)); }
+@media (max-width: 760px) {
+  .meta-line .info { justify-content: flex-start; text-align: left; }
+  .meta-line .brand img { height: 46px; }
+  .meta-line .event-logo { height: 46px; width: 46px; }
+  .two { grid-template-columns: 1fr; }
+  .officials { grid-template-columns: 1fr; }
+  .np-reasons { grid-template-columns: 1fr; }
+  .log li { grid-template-columns: 48px 62px minmax(0, 1fr); }
+  .log-btns { grid-column: 3; justify-content: flex-start; }
+  .tm .badge { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { .act:active { transform: none; } }
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="logo-home" viewBox="0 0 40 40"><path d="M20 2 36 8v12c0 9-7 15-16 18C11 35 4 29 4 20V8z" fill="#F2A900" stroke="#fff" stroke-width="2"/><text x="20" y="25" text-anchor="middle" font-family="Arial Black,Arial" font-weight="900" font-size="12" fill="#0A1D3F">CL</text></symbol>
+    <symbol id="logo-away" viewBox="0 0 40 40"><circle cx="20" cy="20" r="18" fill="#1B7F45" stroke="#fff" stroke-width="2"/><path d="M11 27 27 11m0 0h-7m7 0v7" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round"/></symbol>
+  </defs>
+</svg>
+
+<div class="sample syncbar"><span id="sync-state">Loading the event…</span></div>
+
+<header class="board">
+  <div class="titlebar"><div class="titlebar-in">
+    <div class="meta-line">
+      <span class="brand"><img src="<?!= shield ?>" alt="USBOXLA"><span><b>GAME SHEET SYSTEM</b><small>US Box Lacrosse Association</small></span></span>
+      <span class="info"><span id="game-meta"></span><span class="mode" id="mode-pill"></span><button class="rinkchip help-chip" id="help-btn" aria-label="How to use the game sheet">? Help</button><button class="rinkchip" id="rink-chip"></button></span>
+      <img class="event-logo" id="event-logo" alt="" hidden>
+    </div>
+  </div></div>
+  <div class="board-in">
+
+    <div class="tm home"><span class="badge tl" data-tl="home"></span><div class="nm"><b id="home-name"></b><small>Home</small></div></div>
+    <div class="score" aria-live="polite"><span id="home-score">0</span><span class="per" id="per-label"></span><span id="away-score">0</span></div>
+    <div class="tm away"><div class="nm"><b id="away-name"></b><small>Visitor</small></div><span class="badge tl" data-tl="away"></span></div>
+  </div>
+</header>
+<div class="queue" id="queue" aria-label="Today on this rink"></div>
+
+<nav class="steps" aria-label="Game steps">
+  <div class="steps-in">
+    <button id="step-checkin" data-step="checkin"><span class="n">1</span>Check-in</button>
+    <button id="step-live" data-step="live"><span class="n">2</span>Game</button>
+    <button id="step-final" data-step="final"><span class="n">3</span>Final &amp; sign-off</button>
+  </div>
+</nav>
+
+<main id="tablet">
+  <!-- 1. CHECK-IN -->
+  <section class="panel" id="panel-checkin" aria-label="Check-in">
+    <p class="hint">Rosters come from USBOXLA's verified team sheets. Every verified player starts out <b>Dressed</b> – untap anyone who isn't playing. Jersey numbers and goalies carry over from the team's last game. Players without a verified membership show in red and can't be dressed.</p>
+    <div class="two">
+      <div class="card"><div class="card-h"><h2><span class="tl" data-tl="home"></span><span id="ci-home-name"></span></h2><span class="count" id="ci-home-count"></span></div><ul class="roster" id="ci-home"></ul></div>
+      <div class="card"><div class="card-h"><h2><span class="tl" data-tl="away"></span><span id="ci-away-name"></span></h2><span class="count" id="ci-away-count"></span></div><ul class="roster" id="ci-away"></ul></div>
+    </div>
+    <div class="checkin-foot">
+      <div class="card">
+        <div class="officials">
+          <div class="field"><label for="ref1">Referee 1</label><select id="ref1" data-slot="ref1"></select><input id="ref1-name" data-name="ref1" autocomplete="off" placeholder="Full name (not certified)" hidden></div>
+          <div class="field"><label for="ref2">Referee 2 (optional)</label><select id="ref2" data-slot="ref2"></select><input id="ref2-name" data-name="ref2" autocomplete="off" placeholder="Full name (not certified)" hidden></div>
+          <div class="field"><label for="ref3">Referee 3 (optional)</label><select id="ref3" data-slot="ref3"></select><input id="ref3-name" data-name="ref3" autocomplete="off" placeholder="Full name (not certified)" hidden></div>
+          <div class="field"><label for="sk">Scorekeeper</label><select id="sk" data-slot="sk"></select><input id="sk-name" data-name="sk" autocomplete="off" placeholder="Scorekeeper's name" hidden></div>
+        </div>
+        <p class="off-note" id="off-note"></p>
+          <p class="guide-nudge" id="sk-new" hidden>New scorekeeper? <button class="del add" id="sk-guide">Take the 90-second guide</button></p>
+        <label class="confirm"><input type="checkbox" id="ref-count"><span>Referee check: the number of players on each bench matches the dressed count above.</span></label>
+      </div>
+      <div class="row-end"><span class="blocker" id="ci-blocker"></span><button class="big np" data-np="1">Game not played</button><button class="big" id="start">Start game at faceoff</button></div>
+    </div>
+  </section>
+
+  <!-- 2. LIVE -->
+  <section class="panel" id="panel-live" aria-label="Game" hidden>
+    <div class="periods" role="group" aria-label="Period">
+      <span class="lbl" style="margin-right:4px">Period</span>
+      <button data-p="1">1</button><button data-p="2">2</button><button data-p="3">3</button><button data-p="OT" id="ot-btn">OT · 5 min</button>
+    </div>
+    <div class="two">
+      <div class="card"><div class="card-h"><h2><span class="tl" data-tl="home"></span><span id="lv-home-name"></span></h2></div>
+        <div class="live-team"><div class="acts"><button class="act" data-goal="home">+ Goal</button><button class="act pen" data-pen="home">Penalty</button></div><div class="mini-stats" id="lv-home-stats"></div></div></div>
+      <div class="card"><div class="card-h"><h2><span class="tl" data-tl="away"></span><span id="lv-away-name"></span></h2></div>
+        <div class="live-team"><div class="acts"><button class="act" data-goal="away">+ Goal</button><button class="act pen" data-pen="away">Penalty</button></div><div class="mini-stats" id="lv-away-stats"></div></div></div>
+    </div>
+    <div class="card log">
+      <div class="card-h"><h2>Game log</h2><span class="hint" style="margin:0">Newest first · tap Remove to fix a mistake</span></div>
+      <ol id="log"></ol>
+    </div>
+    <div class="row-end" style="margin-top:16px;flex-wrap:wrap"><button class="big ghost" id="incident" style="margin-right:auto">Incident / injury report</button><button class="big np" data-np="1">Game not played</button><button class="big" id="to-final">End game</button></div>
+<p class="hint" style="margin:8px 0 0">Incident / injury reports are <b>post-game reports</b> – keep the game going and write it after the final whistle. It's on the Final screen too.</p>
+  </section>
+
+  <!-- 3. FINAL -->
+  <section class="panel" id="panel-final" aria-label="Final and sign-off" hidden>
+    <div class="final-grid">
+      <div class="card"><div class="card-h"><h2 id="by-period-h">Score by period</h2></div><div class="box" id="by-period"></div></div>
+      <div class="two" id="player-lines"></div>
+      <div class="card" id="sir-card" hidden><div class="card-h"><h2>Special Incident Reports</h2><span class="hint" style="margin:0">Sent to the event director and the Referee-in-Chief</span></div><div id="sir-body" style="padding-top:12px"></div></div>
+      <div class="card" id="signoff">
+        <div class="card-h"><h2>Sign-off</h2></div>
+        <label class="confirm"><input type="checkbox" id="sign-sk"><span id="sign-sk-text"></span></label>
+        <label class="confirm"><input type="checkbox" id="sign-ref"><span id="sign-ref-text"></span></label>
+        <div style="padding:0 14px 14px" class="row-end"><span class="blocker" id="fin-blocker"></span><button class="big ghost" id="back-live">Back to game</button><button class="big" id="finalize">Finalize game</button></div>
+      </div>
+      <div class="card" id="result" hidden>
+        <div class="tm-result">
+          <div class="locked" id="locked-text">✓ Game final and locked. Sent to Tournament HQ.</div>
+          <div class="line" id="result-line"></div>
+          <div class="row-end"><span class="hint" id="next-hint" style="margin:0"></span><button class="big" id="next-game">Start next game</button></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- TOURNAMENT HQ CONSOLE -->
+<main id="hq" hidden>
+  <div class="hq-head"><h1>Tournament HQ</h1><span class="hint" id="hq-sub" style="margin:0"></span></div>
+  <div class="hq-alerts" id="hq-alerts"></div>
+  <div class="rinks" id="hq-rinks"></div>
+  <div class="card" style="margin-top:18px">
+    <div class="card-h"><h2>Scores to enter in Tourney Machine</h2><span class="hint" id="hq-todo-count" style="margin:0"></span></div>
+    <div class="box"><table><thead><tr><th>Game</th><th>Rink</th><th>Time</th><th>Division</th><th>Final</th><th></th></tr></thead><tbody id="hq-todo"></tbody></table></div>
+  </div>
+  <div class="card" style="margin-top:18px">
+    <div class="card-h"><h2>Today's schedule</h2></div>
+    <div class="box"><table><thead><tr><th>Time</th><th>Rink</th><th>Game</th><th>Division</th><th>Matchup</th><th>Status</th></tr></thead><tbody id="hq-all"></tbody></table></div>
+  </div>
+</main>
+
+<!-- DEVICE SETUP -->
+<section class="setup" id="setup" hidden>
+  <div class="setup-card">
+    <div class="setup-logos"><img id="setup-shield" src="<?!= shield ?>" alt="USBOXLA"><img class="event-logo" id="setup-event-logo" alt="" hidden></div>
+    <h1>Set up this device</h1>
+    <p class="hint"><span class="ev-name" id="setup-event"></span> Do this once at the start of the day – the device remembers it.</p>
+    <div class="lbl" id="days-lbl">Day</div>
+    <div class="days" id="setup-days"></div>
+    <div class="lbl">Rink tablet</div>
+    <div class="setup-rinks" id="setup-rinks"></div>
+    <div class="lbl" style="margin-top:18px">Or</div>
+    <button class="big ghost" id="setup-hq" style="width:100%">Tournament HQ console (laptop)</button>
+  </div>
+</section>
+
+<!-- quick guide for scorekeepers -->
+<div class="sheet" id="guide" hidden role="dialog" aria-modal="true" aria-labelledby="guide-title">
+  <div class="sheet-card guide-card">
+    <div class="guide-top"><span class="lbl" id="guide-count"></span><button class="del" id="guide-close">Close</button></div>
+    <h3 id="guide-title"></h3>
+    <div id="guide-body"></div>
+    <div class="guide-dots" id="guide-dots"></div>
+    <div class="sheet-foot">
+      <span id="guide-extra"></span>
+      <div style="display:flex;gap:10px"><button class="big ghost" id="guide-prev">Back</button><button class="big" id="guide-next">Next</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- picker sheet -->
+<div class="sheet" id="sheet" hidden role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+  <div class="sheet-card">
+    <h3 id="sheet-title"></h3>
+    <p class="sub" id="sheet-sub"></p>
+    <div class="trail" id="trail"></div>
+    <div id="sheet-body"></div>
+    <div class="sheet-foot">
+      <span></span>
+      <div style="display:flex;gap:10px"><button class="big ghost" id="sheet-cancel">Cancel</button><button class="big" id="sheet-save" disabled>Save</button></div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+// ---------- the event day (loaded from the USBOXLA web app: Tourney Machine schedule + verified rosters) ----------
+const API = <?!= JSON.stringify(api) ?>, EVENT_ID = <?!= JSON.stringify(eventId) ?>, GS_KEY = <?!= JSON.stringify(key) ?>;
+let EVENT = { name: "", mode: "full", day: "", place: "", logo: "", pin: "" };
+document.body.classList.add("loading");
+let TEAMS = {}, ALL_GAMES = [], SCHEDULE = [], RINKS = [], DAYS = [], TODAY = "";
+let REFS = [];   // certified referees from academy.usboxla.com (names only)
+function applyEventLogo() {
+  ["event-logo", "setup-event-logo"].forEach(id => {
+    const im = $(id); if (!im) return;
+    if (EVENT.logo) { im.src = EVENT.logo; im.alt = EVENT.name; im.hidden = false; } else im.hidden = true;
+  });
+}
+function freshDB() { return { games: {}, teamMem: {}, rinkOff: {}, entered: {}, sirseen: {} }; }
+let DB = freshDB();
+const dayLabel = d => { if (!d) return ""; const [y, m, dd] = d.split("-").map(Number); return new Date(y, m - 1, dd).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" }); };
+const parseLocal = s => { const [d, t] = s.split("T"); const [y, m, dd] = d.split("-").map(Number); const [h, mi] = (t || "0:0").split(":").map(Number); return new Date(y, m - 1, dd, h, mi); };
+const rinkName = n => (RINKS.find(r => r.n === n) || {}).name || "Rink " + n;
+const rinksToday = () => RINKS.filter(r => SCHEDULE.some(g => g.rink === r.n));
+function setDay(d) {
+  EVENT.day = dayLabel(d);
+  SCHEDULE = ALL_GAMES.filter(g => g.day === d).map((g, i) => Object.assign({}, g, { slot: parseLocal(g.start).getTime() }));
+}
+function pickDay() {
+  if (SETUP_DAY && DAYS.includes(SETUP_DAY)) return SETUP_DAY;
+  if (DEVICE && DEVICE.day && DAYS.includes(DEVICE.day)) return DEVICE.day;
+  return DAYS.find(d => d === TODAY) || DAYS.find(d => d >= TODAY) || DAYS[0] || "";
+}
+const startOf = g => parseLocal(g.start);
+const fmtTime = d => d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+// Device role lives with this tab/tablet only.
+let DEVICE = null;
+try { DEVICE = JSON.parse(sessionStorage.getItem("usboxla-device")); } catch (e) {}
+const saveDevice = () => { try { sessionStorage.setItem("usboxla-device", JSON.stringify(DEVICE)); } catch (e) {} };
+function badge(teamKey, size) {
+  const t = TEAMS[teamKey]; if (!t) return "";
+  if (t.logo) return `<img src="${t.logo}" alt="">`;
+  const ini = t.short.replace(/[^A-Za-z]/g, "").slice(0, 2).toUpperCase();
+  return `<svg viewBox="0 0 40 40" aria-hidden="true"><path d="M20 2 36 8v12c0 9-7 15-16 18C11 35 4 29 4 20V8z" fill="${t.color}" stroke="#fff" stroke-width="2"/><text x="20" y="25" text-anchor="middle" font-family="Arial Black,Arial" font-weight="900" font-size="12" fill="#fff">${ini}</text></svg>`;
+}
+let GAME = null;   // the schedule entry + team names for the game on this tablet
+// Infraction chart, 2027 USBOXLA Rule & Situational Book (Rule 44)
+const CODES = [["BRD","Boarding"],["BE","Butt ending"],["BM","Bench minor"],["CHG","Charging"],["CFB","Check from behind"],["CC","Cross checking"],
+  ["DG","Delay of game"],["EB","Elbowing"],["MP","Fighting / match"],["INT","Interference"],["HB","Handball"],["HS","High sticking"],["HLD","Holding"],
+  ["RO","Roughing"],["SL","Slashing"],["SP","Spearing"],["TS","Throwing stick"],["TMP","Too many players"],["TR","Tripping"],["DBC","Dead ball contact"]];
+
+
+// Rule 30/31/33: minor = 2 min; major = penalty shot + 2-min non-releasable; match = major + game ejection. Every penalty serves 2 minutes.
+const SEVERITY = [["Minor", "Minor (2)"], ["Major", "Major"], ["Match", "Match"]];
+const PIM = 2;
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+function freshState(g) {
+  const team = side => {
+    const t = TEAMS[g[side]], mem = DB.teamMem[t.key] || {};
+    return t.players.map(p => ({ id: p.id, first: p.first, last: p.last, verified: p.verified,
+      num: (mem.nums && mem.nums[p.id]) || p.num,
+      dressed: p.verified && !(mem.out || []).includes(p.id),
+      goalie: mem.goalies ? mem.goalies.includes(p.id) : p.goalieDefault }));
+  };
+  const off = normOff(DB.rinkOff[g.rink]);
+  return { gid: g.id, step: "checkin", period: "1", roster: { home: team("home"), away: team("away") }, events: [], off: off,
+    refCount: false, signSk: false, signRef: false, final: false, nextId: 1, medal: g.medal, so: null };
+}
+let S = null;
+// ---------- officials ----------
+// Referees are picked from the certified list (course passed + membership active). "Other" is allowed but flagged
+// to Tournament HQ and the Referee-in-Chief. A scorekeeper is a tournament scorekeeper (typed; paid by the tournament, not through BILL) or a
+// USBOXLA referee running the penalty box (picked, paid the event's Penalty Box Rate).
+const OFF_SLOTS = ["ref1", "ref2", "ref3"];
+const refById = id => REFS.find(r => r.id === id);
+const refByName = n => { n = String(n || "").trim().toLowerCase(); return n ? REFS.find(r => r.name.toLowerCase() === n) : null; };
+function normOff(off) {
+  off = Object.assign({ sk: "", ref1: "", ref2: "", ref3: "" }, off ? JSON.parse(JSON.stringify(off)) : {});
+  OFF_SLOTS.forEach(s => {
+    if (off[s + "Id"] === undefined) { const m = refByName(off[s]); off[s + "Id"] = m ? m.id : off[s].trim() ? "other" : ""; }
+  });
+  if (off.skType === undefined) { const m = refByName(off.sk); off.skType = m ? "ref" : off.sk.trim() ? "tourney" : ""; off.skId = m ? m.id : ""; }
+  return off;
+}
+const uncertified = off => off ? OFF_SLOTS.filter(s => off[s + "Id"] === "other" && String(off[s] || "").trim()).map(s => off[s].trim()) : [];
+function officialsWhy() {
+  const o = S.off, why = [], ids = [];
+  if (!o.ref1Id) why.push("choose Referee 1");
+  OFF_SLOTS.forEach((s, i) => {
+    const id = o[s + "Id"]; if (!id) return;
+    if (id === "other") { if (!String(o[s] || "").trim()) why.push(`type Referee ${i + 1}'s name`); return; }
+    const r = refById(id);
+    if (r && !r.ok) why.push(`${r.name} can't referee (${r.why || "membership expired"})`);
+    ids.push(id);
+  });
+  if (!o.skType) why.push("choose the scorekeeper");
+  else if (o.skType === "tourney" && !String(o.sk || "").trim()) why.push("type the scorekeeper's name");
+  else if (o.skType === "ref") { const r = refById(o.skId); if (r && !r.ok) why.push(`${r.name} can't keep score as a referee (${r.why || "membership expired"})`); ids.push(o.skId); }
+  if (new Set(ids).size !== ids.length) why.push("one person is picked twice");
+  return why;
+}
+function refOptions(slot) {
+  const o = S.off, mine = slot === "sk" ? (o.skType === "ref" ? o.skId : "") : o[slot + "Id"];
+  const taken = new Set(OFF_SLOTS.map(s => o[s + "Id"]).concat(o.skType === "ref" ? [o.skId] : []).filter(id => id && id !== "other" && id !== mine));
+  const opt = (v, label, dis) => `<option value="${esc(v)}"${v === (slot === "sk" ? (o.skType === "ref" ? o.skId : o.skType) : mine) ? " selected" : ""}${dis ? " disabled" : ""}>${esc(label)}</option>`;
+  const list = REFS.map(r => opt(r.id, (r.senior ? "★ " : "") + r.name + (r.senior ? " – Senior Official" : "") + (!r.ok ? " – " + (r.why || "membership expired") : taken.has(r.id) ? " – already on this game" : ""), !r.ok || taken.has(r.id))).join("");
+  // A remembered referee who is no longer on the list still shows (and is checked by officialsWhy).
+  const gone = mine && mine !== "other" && !refById(mine) ? opt(mine, (slot === "sk" ? o.sk : o[slot]) + " – not on the referee list", true) : "";
+  if (slot === "sk") return opt("", "Choose scorekeeper") + opt("tourney", "Tournament scorekeeper") +
+    `<optgroup label="USBOXLA referee running the penalty box">${list || opt("x", "No referee list yet", true)}${gone}</optgroup>`;
+  return opt("", slot === "ref1" ? "Choose referee" : "None") +
+    `<optgroup label="Certified referees">${list || opt("x", "No referee list yet – ask HQ", true)}${gone}</optgroup>` + opt("other", "Other – not certified");
+}
+function renderOfficials() {
+  const lock = S.final || S.step !== "checkin";
+  OFF_SLOTS.concat(["sk"]).forEach(s => {
+    const sel = $(s), inp = $(s + "-name");
+    sel.innerHTML = refOptions(s); sel.disabled = lock;
+    const typed = s === "sk" ? S.off.skType === "tourney" : S.off[s + "Id"] === "other";
+    inp.hidden = !typed; inp.disabled = lock;
+    if (typed && document.activeElement !== inp) inp.value = S.off[s] || "";
+  });
+  const unc = uncertified(S.off);
+  $("off-note").textContent = unc.length ? `⚠ Not certified: ${unc.join(", ")}. Tournament HQ and the Referee-in-Chief will be notified.` : "";
+}
+function mergeRoster(st, g) {
+  if (!st || st.step !== "checkin" || st.final) return;
+  const fresh = freshState(g);
+  ["home", "away"].forEach(side => {
+    const old = Object.fromEntries((st.roster[side] || []).map(p => [p.id, p]));
+    st.roster[side] = fresh.roster[side].map(p => old[p.id] ? Object.assign({}, p, { num: old[p.id].num || p.num, dressed: p.verified && old[p.id].dressed, goalie: p.verified && old[p.id].goalie }) : p);
+  });
+}
+function gameInfo(g) {
+  const h = TEAMS[g.home], a = TEAMS[g.away];
+  return Object.assign({}, g, { event: EVENT.name, mode: EVENT.mode, start: startOf(g),
+    home: { key: h.key, name: h.name, short: h.short }, away: { key: a.key, name: a.name, short: a.short } });
+}
+function loadGame(gid) {
+  const g = SCHEDULE.find(x => x.id === gid);
+  GAME = gameInfo(g);
+  if (!DB.games[gid]) DB.games[gid] = freshState(g); else mergeRoster(DB.games[gid], g);
+  S = DB.games[gid];
+  S.off = normOff(S.off);
+}
+// Several tablets (and the HQ laptop) share one store, so merge with the latest copy before writing.
+let STORE = null;            // the shared USBOXLA store (db capability) when available
+const writeQ = {};
+// One write at a time per document; bursts coalesce into the latest state.
+function queueWrite(path, data) {
+  const q = writeQ[path] || (writeQ[path] = { busy: false, next: null });
+  q.next = JSON.parse(JSON.stringify(data));
+  if (q.busy) return;
+  q.busy = true;
+  (async () => {
+    while (q.next) {
+      const d = q.next; q.next = null;
+      try { await STORE.doc(path).set(d); }
+      catch (e) {
+        if (e && e.code === "unavailable") { await new Promise(r => setTimeout(r, 600 + Math.random() * 900)); if (!q.next) q.next = d; }
+        else { console.error(e); toast("Couldn't sync to HQ – the tablet keeps the game and will try again", 4000); }
+      }
+    }
+    q.busy = false;
+  })();
+}
+function save() {
+  if (S && GAME && GAME.id === S.gid) S.game = gameStamp();
+  if (S) { S.updatedAt = Date.now(); DB.games[S.gid] = S; if (STORE) queueWrite("games/" + S.gid, S); }
+}
+const rinkGames = r => SCHEDULE.filter(g => g.rink === r).sort((a, b) => a.slot - b.slot);
+const currentGameFor = r => { const list = rinkGames(r); return list.find(g => !(DB.games[g.id] && DB.games[g.id].final)) || null; };
+
+const dressed = k => S.roster[k].filter(p => p.dressed);
+const player = id => S.roster.home.concat(S.roster.away).find(p => p.id === id);
+// Shootout goals aren't recorded; the winner gets one extra (unrecorded) goal in the final score (Rule 18.10).
+const tiedInPlay = () => goals("home") === goals("away");
+const scoreOf = k => S.notPlayed ? npScore(S.notPlayed, k) : goals(k) + (S.so === k ? 1 : 0);
+// "Game not played": agreed = 0–0, forfeit = 1–0 to the other team, facility/other = no score (HQ decides).
+const NP_REASONS = [["agreed", "Both teams agreed", "Not played – recorded 0–0"], ["forfeit", "Forfeit", "One team forfeits – 1–0 to the other team"],
+  ["facility", "Facility / safety", "The Game Play Coordinator decides the result"], ["other", "Other", "Tournament HQ decides the result"]];
+const npScore = (np, k) => np.reason === "forfeit" ? (np.team === k ? 0 : 1) : 0;
+function npLabel(np, names) {
+  if (np.reason === "forfeit") { const w = np.team === "home" ? "away" : "home"; return `${names[np.team]} forfeited – ${names[w]} wins 1–0`; }
+  if (np.reason === "agreed") return "Not played – both teams agreed (0–0)";
+  if (np.reason === "facility") return "Not played – facility / safety (Game Play Coordinator decides)";
+  return "Not played – other (Tournament HQ decides)";
+}
+function gameStamp() {
+  if (!GAME) return null;
+  const d = GAME.start, p = n => String(n).padStart(2, "0");
+  return { number: GAME.number, division: GAME.division, rink: GAME.rink, home: GAME.home.name, away: GAME.away.name,
+    start: d instanceof Date ? `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}` : String(d || "") };
+}
+// Ejection (Rule 32 Bully Rule, Rule 33): match penalty, 3rd major, or 4th total penalty in a game.
+function penStatus(id, uptoId) {
+  const list = S.events.filter(e => e.type === "pen" && e.player === id && (uptoId == null || e.id <= uptoId));
+  const majors = list.filter(e => e.min !== "Minor").length;
+  const match = list.some(e => e.min === "Match");
+  const why = match ? "match penalty" : majors >= 3 ? "3 major penalties" : list.length >= 4 ? "4 penalties (Bully Rule)" : "";
+  return { count: list.length, why };
+}
+const ejected = id => !!(id && penStatus(id).why);
+const ejectedBy = e => e.type === "pen" && e.player && penStatus(e.player, e.id).why && !penStatus(e.player, e.id - 1).why;
+const pLabel = p => p ? `#${p.num} ${p.first[0]}. ${p.last}` : "";
+const goals = (k, per) => S.events.filter(e => e.type === "goal" && e.team === k && (!per || e.period === per)).length;
+const toast = (msg, ms) => { const t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => t.hidden = true, ms || 2200); };
+
+// ---------- header ----------
+function renderBoard() {
+  const mins = Math.round((GAME.start - Date.now()) / 60000);
+  const cd = S.final ? "" : S.step !== "checkin" ? "" : mins > 720 ? `<span class="countdown">${esc(dayLabel(GAME.day))}</span> · ` : mins > 0 ? `<span class="countdown">Starts in ${mins} min</span> · ` : `<span class="countdown late">Running ${-mins} min behind</span> · `;
+  $("game-meta").innerHTML = `<b>${fmtTime(GAME.start)}</b> · ${cd}Game ${esc(GAME.number)} · ${esc(GAME.event)} · ${esc(GAME.division)}${GAME.medal ? " · <b>Medal game</b>" : ""}`;
+  document.querySelectorAll("[data-tl]").forEach(el => el.innerHTML = badge(GAME[el.dataset.tl].key));
+  $("rink-chip").textContent = `Rink ${GAME.rink} · Change`;
+  $("mode-pill").textContent = GAME.mode === "full" ? "Full stats" : "Score only";
+  $("mode-pill").className = "mode" + (GAME.mode === "full" ? "" : " score");
+  ["home", "away"].forEach(k => {
+    $(k + "-name").textContent = GAME[k].name;
+    $("ci-" + k + "-name").textContent = GAME[k].short;
+    $("lv-" + k + "-name").textContent = GAME[k].short;
+    $(k + "-score").textContent = scoreOf(k);
+  });
+  $("per-label").innerHTML = S.final && S.notPlayed ? (S.notPlayed.reason === "forfeit" ? "FINAL<span>forfeit</span>" : "NP<span>not played</span>") : S.final ? (S.so ? "FINAL<span>shootout</span>" : S.events.some(e => e.period === "OT") ? "FINAL<span>OT</span>" : "FINAL") : S.step === "checkin" ? "PRE<span>game</span>" : (S.period === "OT" ? "OT" : "P" + S.period) + "<span>period</span>";
+}
+
+// ---------- steps ----------
+function canStart() {
+  const why = [];
+  ["home", "away"].forEach(k => {
+    if (!S.roster[k].length) { why.push(TEAMS[GAME[k].key] && TEAMS[GAME[k].key].placeholder ? `${GAME[k].short}: waiting for Tourney Machine to name the team` : `${GAME[k].short}: no roster in the USBOXLA system yet`); return; }
+    const n = dressed(k).length; if (n < 6) why.push(`${GAME[k].short}: dress at least 6 players`);
+  });
+  ["home", "away"].forEach(k => {
+    const nums = dressed(k).map(p => p.num.trim());
+    if (nums.some(n => !n)) why.push(`${GAME[k].short}: every dressed player needs a number`);
+    else if (new Set(nums).size !== nums.length) why.push(`${GAME[k].short}: two players share a number`);
+  });
+  ["home", "away"].forEach(k => { if (S.roster[k].length && !dressed(k).some(p => p.goalie)) why.push(`${GAME[k].short}: mark a goalie`); });
+  officialsWhy().forEach(w => why.push(w));
+  if (!S.refCount) why.push("referee bench check");
+  return why;
+}
+function renderSteps() {
+  document.querySelectorAll(".steps button").forEach(b => {
+    const st = b.dataset.step;
+    b.toggleAttribute("aria-current", st === S.step); if (st === S.step) b.setAttribute("aria-current", "step");
+    b.disabled = (st !== "checkin" && S.step === "checkin") || (st === "checkin" && S.final) || (st === "live" && !!S.notPlayed);
+    b.classList.toggle("done", (st === "checkin" && S.step !== "checkin") || (st === "live" && S.final));
+  });
+  ["checkin", "live", "final"].forEach(st => $("panel-" + st).hidden = st !== S.step);
+}
+
+// ---------- check-in ----------
+function renderCheckin() {
+  ["home", "away"].forEach(k => {
+    const ros = S.roster[k];
+    const tm = TEAMS[GAME[k].key] || {};
+    $("ci-" + k).innerHTML = !ros.length ? `<li class="no-roster">${tm.placeholder ? "Team not decided yet – Tourney Machine fills it in when the earlier games are final." : "No roster for this team in the USBOXLA system yet. Tell Tournament HQ."}</li>` : ros.map(p => `<li class="${p.verified ? "" : "bad"}">
+      <input class="jn" data-num="${p.id}" value="${esc(p.num)}" inputmode="numeric" maxlength="3" aria-label="Jersey number for ${esc(p.first)} ${esc(p.last)}" ${p.verified && !S.final ? "" : "disabled"}>
+      <div class="pn"><b>${esc(p.first)} ${esc(p.last)}</b>
+        ${p.verified ? '<small class="v-ok">✓ Verified member</small>' : '<small class="v-bad">✕ No valid membership – can\'t play</small>'}</div>
+      <button class="gk" data-gk="${p.id}" aria-pressed="${!!p.goalie}" title="Goalie" aria-label="Goalie: ${esc(p.first)} ${esc(p.last)}" ${p.verified && p.dressed && S.step === "checkin" ? "" : "disabled"}>G</button>
+      <button class="dress" data-dress="${p.id}" aria-pressed="${p.dressed}" ${p.verified && S.step === "checkin" ? "" : "disabled"}>${p.dressed ? "✓ Dressed" : "Not dressed"}</button></li>`).join("");
+    const n = dressed(k).length;
+    $("ci-" + k + "-count").textContent = `${n} dressed`;
+    $("ci-" + k + "-count").className = "count" + (n >= 6 ? " okc" : "");
+  });
+  renderOfficials(); $("ref-count").checked = S.refCount;
+  document.querySelectorAll("[data-np]").forEach(b => b.hidden = !!S.final);
+  const why = canStart();
+  $("start").disabled = why.length > 0;
+  $("ci-blocker").textContent = why.length ? "To start: " + why.join(" · ") : "";
+}
+
+// ---------- live ----------
+function renderLive() {
+  document.querySelectorAll(".periods button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.p === S.period)));
+  $("ot-btn").hidden = !S.medal;
+  // The end button says what happens next, so a tie never reads as "end game".
+  const otPlayed = S.events.some(e => e.period === "OT") || S.period === "OT";
+  const lateTie = tiedInPlay() && (S.period === "3" || S.period === "OT");
+  const endLabel = !lateTie ? "End game"
+    : S.medal && !otPlayed ? `Tied ${goals("home")}–${goals("away")} · Go to overtime`
+    : `Tied ${goals("home")}–${goals("away")} · Go to shootout`;
+  $("to-final").textContent = endLabel;
+  $("to-final").classList.toggle("tie", lateTie);
+  ["home", "away"].forEach(k => {
+    const pim = S.events.filter(e => e.type === "pen" && e.team === k).length * PIM;
+    $("lv-" + k + "-stats").innerHTML = `<span>Goals <b>${goals(k)}</b></span><span>Penalties <b>${S.events.filter(e => e.type === "pen" && e.team === k).length}</b></span><span>PIM <b>${pim}</b></span><span>Dressed <b>${dressed(k).length}</b></span>`;
+  });
+  const list = S.events.slice().reverse();
+  $("log").innerHTML = list.length ? list.map(e => {
+    const team = GAME[e.team].short;
+    let desc;
+    if (e.type === "goal") {
+      const s = player(e.scorer), a = player(e.a1);
+      desc = GAME.mode === "full" && s ? `<b>${esc(team)}</b> ${e.ps ? "penalty shot goal" : "goal"} – ${esc(pLabel(s))}<small>${e.ps ? "Penalty shot" : a ? "Assist: " + esc(pLabel(a)) : "Unassisted"}</small>` : `<b>${esc(team)}</b> ${e.ps ? "penalty shot goal" : "goal"}`;
+    } else {
+      const p = player(e.player), c = CODES.find(c => c[0] === e.code);
+      desc = `<b>${esc(team)}</b> – ${p ? esc(pLabel(p)) : "Bench"}<small>${esc(e.code)} ${c ? esc(c[1]) : ""} · ${esc(e.min)}${e.min !== "Minor" ? " · penalty shot: " + (e.ps === "goal" ? "goal" : e.ps === "miss" ? "no goal" : e.ps === "none" ? "none (coincidental)" : "–") : ""}${ejectedBy(e) ? " · <b>EJECTED</b>" : ""}</small>`;
+    }
+    return `<li><span class="pp">${e.period === "OT" ? "OT" : "P" + e.period}</span><span class="kind ${e.type === "pen" ? "p" : ""}">${e.type === "goal" ? "Goal" : "Pen"}</span>
+      <span class="desc">${desc}</span>${S.final ? "" : `<span class="log-btns">${e.type === "goal" && GAME.mode === "full" && !e.a1 && !e.ps ? `<button class="del add" data-assist="${e.id}">+ Assist</button>` : ""}<button class="del" data-edit="${e.id}">Edit</button><button class="del" data-del="${e.id}">Remove</button></span>`}</li>`;
+  }).join("") : '<li class="empty">No goals or penalties yet. Tap + Goal or Penalty for the team.</li>';
+}
+
+// ---------- picker sheet ----------
+let P = null;   // { type, team, step, scorer, a1, player, code, min, eventId }
+function openSheet(type, team) {
+  if (type === "goal" && GAME.mode !== "full") { addEvent({ type: "goal", team, clock: "" }); return; }
+  P = { type, team, step: type === "goal" ? "scorer" : "player" };
+  
+  $("sheet").hidden = false;
+  renderSheet();
+}
+function closeSheet() { $("sheet").hidden = true; P = null; if (REC) { try { REC.mr.stop(); } catch (e) {} } }
+function jerseyGrid(k, sel, exclude, extra, attr) {
+  return `<div class="picks">${dressed(k).slice().sort((a, b) => a.num - b.num).map(p =>
+    `<button class="pick ${sel === p.id ? "sel" : ""}" data-${attr || "pick"}="${p.id}" ${exclude.includes(p.id) || (P && ["goal", "assist", "ps"].includes(P.type) && ejected(p.id)) ? "disabled" : ""}><b>${esc(p.num)}</b><small>${esc(p.last)}${p.goalie ? '<span class="g">G</span>' : ""}</small></button>`).join("")}${extra || ""}</div>`;
+}
+function renderSheet() {
+  const t = GAME && GAME[P.team] ? GAME[P.team].short : "";
+  let body = "", trail = [];
+  if (P.type === "goal") {
+    $("sheet-title").textContent = `${t} goal`;
+    $("sheet-sub").textContent = P.step === "scorer" ? "Who scored?" : "Assist (optional) – tap a player or Unassisted";
+    if (P.scorer) trail.push("Goal " + pLabel(player(P.scorer)));
+    const none = P.step === "scorer" ? "" : `<button class="pick wide" data-none="1">Unassisted</button><button class="pick wide" data-psgoal="1">Penalty shot goal<small>no assist</small></button>`;
+    body = jerseyGrid(P.team, P[P.step], P.step === "a1" ? [P.scorer] : [], none);
+    $("sheet-save").disabled = !P.scorer;
+    $("sheet-save").textContent = "Save goal";
+  } else if (P.type === "edit") {
+    const g = P.kind === "goal";
+    const evPs = g && (S.events.find(x => x.id === P.eventId) || {}).ps;   // penalty shot goals never have an assist
+    $("sheet-title").textContent = g ? (evPs ? "Edit penalty shot goal" : "Edit goal") : "Edit penalty";
+    $("sheet-sub").textContent = "Change anything below, then save";
+    const teamRow = `<div class="lbl" style="margin-bottom:6px">Team</div><div class="mins seg">${["home", "away"].map(k => `<button class="${P.team === k ? "sel" : ""}" data-team="${k}">${esc(GAME[k].short)}</button>`).join("")}</div>`;
+    const perRow = `<div class="lbl" style="margin:14px 0 6px">Period</div><div class="mins seg">${["1", "2", "3", "OT"].map(x => `<button class="${P.period === x ? "sel" : ""}" data-per="${x}">${x === "OT" ? "OT" : "P" + x}</button>`).join("")}</div>`;
+    if (g) {
+      body = teamRow + (GAME.mode === "full" ? `<div class="lbl" style="margin:14px 0 6px">Scorer</div>` + jerseyGrid(P.team, P.scorer, [], "", "sc") +
+        (evPs ? `<div class="lbl" style="margin:14px 0 6px">Assist</div><p class="hint" style="margin:0">None – a penalty shot goal has no assist.</p>` :
+        `<div class="lbl" style="margin:14px 0 6px">Assist</div>` + jerseyGrid(P.team, P.a1, [P.scorer], `<button class="pick wide ${P.a1 ? "" : "sel"}" data-noas="1">Unassisted</button>`, "as")) : "") + perRow;
+      $("sheet-save").disabled = GAME.mode === "full" && !P.scorer;
+    } else {
+      body = teamRow + `<div class="lbl" style="margin:14px 0 6px">Player</div>` + jerseyGrid(P.team, P.player, [], `<button class="pick wide ${P.player === "bench" ? "sel" : ""}" data-bench="1">Bench</button>`) +
+        `<div class="lbl" style="margin:14px 0 6px">Infraction</div><div class="codes">${CODES.map(c => `<button class="${P.code === c[0] ? "sel" : ""}" data-code="${c[0]}"><b>${c[0]}</b>${c[1]}</button>`).join("")}</div>` +
+        `<div class="lbl" style="margin:14px 0 6px">Severity</div><div class="mins">${SEVERITY.map(m => `<button class="${P.min === m[0] ? "sel" : ""}" data-min="${m[0]}">${m[1]}</button>`).join("")}</div>` + perRow;
+      $("sheet-save").disabled = !(P.player && P.code && P.min);
+    }
+    $("sheet-save").textContent = "Save changes";
+  } else if (P.type === "pin") {
+    $("sheet-title").textContent = "Change this device";
+    $("sheet-sub").textContent = "Enter the rink PIN to move this tablet to another rink or to HQ.";
+    body = `<div class="field" style="max-width:240px"><label for="pin">PIN</label><input id="pin" inputmode="numeric" maxlength="4" autocomplete="off"></div>`;
+    $("sheet-save").disabled = false; $("sheet-save").textContent = "Unlock";
+  } else if (P.type === "ps") {
+    const pen = S.events.find(x => x.id === P.penId), off = pen && player(pen.player);
+    $("sheet-title").textContent = `Penalty shot · ${t}`;
+    $("sheet-sub").textContent = P.step === "result"
+      ? `${pen ? pen.min : "Major"} penalty on ${off ? pLabel(off) : GAME[pen.team].short}. Did ${t} score on the penalty shot?`
+      : "Who took the shot?";
+    body = P.step === "result"
+      ? `<div class="picks"><button class="pick wide" data-psr="goal" style="grid-column:span 2;padding:18px"><b style="font-size:26px">Goal</b></button><button class="pick wide" data-psr="miss" style="grid-column:span 2;padding:18px"><b style="font-size:26px">No goal</b></button><button class="pick wide" data-psr="none" style="grid-column:span 2;padding:18px"><b style="font-size:20px">No shot</b><small>Coincidental majors</small></button></div>`
+      : jerseyGrid(P.team, null, [], "");
+  } else if (P.type === "so") {
+    const otAvailable = S.medal && !S.events.some(e => e.period === "OT") && S.period !== "OT";
+    $("sheet-title").textContent = `Tied ${goals("home")}–${goals("away")}` + (S.period === "OT" ? " after overtime" : " after regulation");
+    $("sheet-sub").textContent = otAvailable ? "Medal game: play 5-minute sudden-death overtime first, or record the shootout winner."
+      : "Who won the shootout? Shootout goals aren't recorded – the winner gets one extra goal in the final score.";
+    body = (otAvailable ? `<button class="big" data-ot="1" style="width:100%;margin-bottom:12px">Start 5-min sudden-death OT</button>` : "") +
+      `<div class="lbl" style="margin-bottom:6px">Shootout winner</div><div class="picks">${["home", "away"].map(k => `<button class="pick wide ${S.so === k ? "sel" : ""}" data-so="${k}" style="grid-column:span 2;padding:18px"><b style="font-size:26px">${esc(GAME[k].short)}</b><small>wins ${goals(k) + 1}–${goals(k === "home" ? "away" : "home")}</small></button>`).join("")}</div>`;
+  } else if (P.type === "sir") {
+    const pen = P.penId ? S.events.find(x => x.id === P.penId) : null;
+    $("sheet-title").textContent = "Special Incident Report";
+    $("sheet-sub").textContent = "Goes to the event director and the Referee-in-Chief as soon as you send it." + (SIR_MEMO ? " Type it, talk into the keyboard microphone, or record a voice memo." : " Type it, or talk into the keyboard microphone.");
+    if (pen) trail.push("Match penalty · " + GAME[pen.team].short + (pen.player ? " · " + pLabel(player(pen.player)) : "") + " · " + (pen.period === "OT" ? "OT" : "P" + pen.period));
+    const midGame = S.step !== "final";   // reports are post-game; remind anyone who opens it during play
+    body = (midGame ? `<div class="np-warn" style="margin:0 0 14px"><span>⏱ <b>Post-game report.</b> If the game is still on, close this, keep scoring and write the report after the final whistle – it's on the Final screen too. Only write it now if play is stopped.</span></div>` : "") + (pen ? "" : `<div class="lbl" style="margin-bottom:6px">What kind?</div><div class="mins seg" style="margin-bottom:14px">${[["injury", "Injury"], ["incident", "Incident"]].map(k => `<button class="${P.kind === k[0] ? "sel" : ""}" data-sirk="${k[0]}">${k[1]}</button>`).join("")}</div>` +
+      `<div class="lbl" style="margin-bottom:6px">Team (optional)</div><div class="mins seg" style="margin-bottom:14px">${["home", "away"].map(k => `<button class="${P.team === k ? "sel" : ""}" data-sirt="${k}">${esc(GAME[k].short)}</button>`).join("")}</div>` +
+      (P.team ? `<div class="lbl" style="margin-bottom:6px">Player (optional)</div>` + jerseyGrid(P.team, P.player, [], "", "sirp") : "")) +
+      `<div class="field" style="margin-top:14px"><label for="sir-text">What happened?</label><textarea id="sir-text" rows="5" maxlength="3000" placeholder="Who, what, when – point form is fine. Tip: tap the microphone on the keyboard to talk instead of typing.">${esc(P.text)}</textarea></div>` +
+      (SIR_MEMO ? `<div class="sir-rec">${P.rec ? `<button class="big rec-on" data-rec="stop">■ Stop recording</button>` : `<button class="big ghost" data-rec="start">🎤 ${P.audio ? "Record again" : "Record a voice memo"}</button>`}${P.audio ? `<span class="hint" style="margin:0">✓ Voice memo ready (${P.audio.secs}s)</span>` : ""}</div>` : `<p class="hint" style="margin:10px 0 0">🎤 To talk instead of type, tap the <b>microphone on the keyboard</b> and speak – the tablet writes it out for you.</p>`) +
+      (P.recErr ? `<p class="blocker" style="margin:8px 0 0">${esc(P.recErr)}</p>` : "");
+    $("sheet-save").textContent = P.uploading ? "Sending…" : "Send report";
+    $("sheet-save").disabled = !(String(P.text).trim() || P.audio) || !!P.rec || !!P.uploading;
+  } else if (P.type === "sirask") {
+    const n = openMatchPens().length;
+    $("sheet-title").textContent = "Match penalty – Special Incident Report?";
+    $("sheet-sub").textContent = `This game has ${n} match penalt${n === 1 ? "y" : "ies"} without a Special Incident Report. A report is usually needed. If the ejection is all that's needed, you can finalize without one.`;
+    body = `<div class="row-end" style="justify-content:flex-start;flex-wrap:wrap;gap:10px"><button class="big" data-sirw="1">Write the report</button><button class="big ghost" data-sirskip="1">Finalize without a report</button></div>`;
+  } else if (P.type === "np") {
+    const n = S.events.length, ref = S.off.ref1Id && String(S.off.ref1 || "").trim();
+    $("sheet-title").textContent = "Game not played";
+    $("sheet-sub").textContent = "Tournament HQ, the event director and the Referee-in-Chief are told right away. Referees are still paid for this game.";
+    body = (n ? `<div class="np-warn">⚠ ${n} goal${n === 1 ? " or penalty is" : "s or penalties are"} already recorded. They won't count – the game is recorded as not played.</div>` : "") +
+      `<div class="lbl" style="margin-bottom:6px">Reason</div><div class="np-reasons">${NP_REASONS.map(r => `<button class="pick ${P.reason === r[0] ? "sel" : ""}" data-npr="${r[0]}"><b>${r[1]}</b><small>${r[2]}</small></button>`).join("")}</div>` +
+      (P.reason === "forfeit" ? `<div class="lbl" style="margin-bottom:6px">Which team forfeited?</div><div class="mins seg" style="margin-bottom:14px">${["home", "away"].map(k => `<button class="${P.team === k ? "sel" : ""}" data-npt="${k}">${esc(GAME[k].short)}</button>`).join("")}</div>` : "") +
+      `<div class="field"><label for="np-note">Note for Tournament HQ (required)</label><textarea id="np-note" rows="3" maxlength="500" placeholder="What happened? Who agreed?">${esc(P.note)}</textarea></div>` +
+      (ref ? `<label class="confirm" style="padding:14px 0 0"><input type="checkbox" id="np-confirm" ${P.confirm ? "checked" : ""}><span>Referee ${esc(S.off.ref1)}: I confirm this game was not played${P.reason === "forfeit" && P.team ? ` and ${esc(GAME[P.team].short)} forfeited` : ""}.</span></label>`
+        : `<p class="blocker" style="margin:14px 0 0">Choose Referee 1 on the check-in screen first – the referee confirms.</p>`);
+    $("sheet-save").textContent = "Record not played";
+    $("sheet-save").disabled = !npReady();
+  } else if (P.type === "assist") {
+    const ev = S.events.find(x => x.id === P.eventId);
+    $("sheet-title").textContent = `Add assist · ${t}`;
+    $("sheet-sub").textContent = "Who assisted on this goal?";
+    trail.push("Goal " + pLabel(player(ev && ev.scorer)));
+    body = jerseyGrid(P.team, null, [ev && ev.scorer], "");
+    $("sheet-save").disabled = true;
+    $("sheet-save").textContent = "Save assist";
+  } else {
+    $("sheet-title").textContent = `${t} penalty`;
+    $("sheet-sub").textContent = "Player, infraction and severity";
+    body = `<div class="lbl" style="margin-bottom:6px">Player</div>` + jerseyGrid(P.team, P.player, [], `<button class="pick wide ${P.player === "bench" ? "sel" : ""}" data-bench="1">Bench</button>`) +
+      `<div class="lbl" style="margin:14px 0 6px">Infraction</div><div class="codes">${CODES.map(c => `<button class="${P.code === c[0] ? "sel" : ""}" data-code="${c[0]}"><b>${c[0]}</b>${c[1]}</button>`).join("")}</div>` +
+      `<div class="lbl" style="margin:14px 0 6px">Severity</div><div class="mins">${SEVERITY.map(m => `<button class="${P.min === m[0] ? "sel" : ""}" data-min="${m[0]}">${m[1]}</button>`).join("")}</div>`;
+    $("sheet-save").disabled = !(P.player && P.code && P.min);
+    $("sheet-save").textContent = "Save penalty";
+  }
+  $("sheet-save").hidden = P.type === "so" || P.type === "ps" || P.type === "sirask";
+  $("trail").innerHTML = trail.map(x => `<span>${esc(x)}</span>`).join("");
+  $("sheet-body").innerHTML = body;
+}
+$("sheet-body").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b || !P) return;
+  if (P.type === "sir" || P.type === "sirask") { sirClick(b); return; }
+  if (P.type === "goal") {
+    if (b.dataset.pick && P.step === "scorer") { P.scorer = b.dataset.pick; P.step = "a1"; }
+    else if (b.dataset.pick) { P.a1 = b.dataset.pick; saveGoal(); return; }
+    else if (b.dataset.none) { P.a1 = null; saveGoal(); return; }
+    else if (b.dataset.psgoal) { P.a1 = null; P.ps = true; saveGoal(); return; }
+  } else if (P.type === "ps") {
+    const pen = S.events.find(x => x.id === P.penId);
+    if (b.dataset.psr) {
+      if (pen) pen.ps = b.dataset.psr;
+      if (b.dataset.psr === "goal" && GAME.mode === "full") { save(); P.step = "shooter"; renderSheet(); return; }
+      if (b.dataset.psr === "goal") { const t = P.team; closeSheet(); addEvent({ type: "goal", team: t, ps: true, period: pen ? pen.period : S.period, clock: "" }); ejectNote(pen); return; }
+      save(); closeSheet(); renderAll(); toast(b.dataset.psr === "miss" ? "Penalty shot – no goal" : "No penalty shot (coincidental)"); ejectNote(pen); return;
+    }
+    if (b.dataset.pick) { const t = P.team; closeSheet(); addEvent({ type: "goal", team: t, scorer: b.dataset.pick, a1: null, ps: true, period: pen ? pen.period : S.period, clock: "" }); ejectNote(pen); return; }
+  } else if (P.type === "so") {
+    if (b.dataset.ot) { S.period = "OT"; markPeriod("OT"); save(); closeSheet(); renderAll(); toast("Sudden-death overtime – next goal wins"); return; }
+    if (b.dataset.so) { S.so = b.dataset.so; S.step = "final"; save(); closeSheet(); renderAll(); window.scrollTo(0, 0); return; }
+  } else if (P.type === "edit") {
+    if (b.dataset.team && b.dataset.team !== P.team) { P.team = b.dataset.team; P.scorer = null; P.a1 = null; P.player = null; }
+    if (b.dataset.per) P.period = b.dataset.per;
+    if (b.dataset.sc) { P.scorer = b.dataset.sc; if (P.a1 === P.scorer) P.a1 = null; }
+    if (b.dataset.as) P.a1 = b.dataset.as;
+    if (b.dataset.noas) P.a1 = null;
+    if (b.dataset.pick) P.player = b.dataset.pick;
+    if (b.dataset.bench) P.player = "bench";
+    if (b.dataset.code) P.code = b.dataset.code;
+    if (b.dataset.min) P.min = b.dataset.min;
+  } else if (P.type === "np") {
+    if (b.dataset.npr) { P.reason = b.dataset.npr; if (P.reason !== "forfeit") P.team = ""; }
+    if (b.dataset.npt) P.team = b.dataset.npt;
+  } else if (P.type === "assist") {
+    if (b.dataset.pick) {
+      const ev = S.events.find(x => x.id === P.eventId);
+      if (ev) { ev.a1 = b.dataset.pick; save(); renderAll(); toast("Assist added"); }
+      closeSheet(); return;
+    }
+  } else {
+    if (b.dataset.pick) P.player = b.dataset.pick;
+    if (b.dataset.bench) P.player = "bench";
+    if (b.dataset.code) P.code = b.dataset.code;
+    if (b.dataset.min) P.min = b.dataset.min;
+  }
+  renderSheet();
+});
+const npReady = () => !!(P && P.reason && (P.reason !== "forfeit" || P.team) && P.note.trim().length >= 3 && P.confirm && S.off.ref1Id && String(S.off.ref1 || "").trim());
+$("sheet-body").addEventListener("input", e => { if (P && P.type === "np" && e.target.id === "np-note") { P.note = e.target.value; $("sheet-save").disabled = !npReady(); } });
+$("sheet-body").addEventListener("change", e => { if (P && P.type === "np" && e.target.id === "np-confirm") { P.confirm = e.target.checked; $("sheet-save").disabled = !npReady(); } });
+function saveGoal() { addEvent({ type: "goal", team: P.team, scorer: P.scorer, a1: P.ps ? null : (P.a1 || null), ps: P.ps ? true : undefined, clock: "" }); closeSheet(); }
+$("sheet-save").addEventListener("click", () => {
+  if (!P) return;
+  if (P.type === "pin") {
+    if ($("pin").value === EVENT.pin) { DEVICE = null; saveDevice(); boot(); } else { toast("Wrong PIN"); }
+    return;
+  }
+  if (P.type === "sir") { sendSir(); return; }
+  if (P.type === "np") {
+    if (!npReady()) return;
+    S.notPlayed = { reason: P.reason, team: P.reason === "forfeit" ? P.team : "", note: P.note.trim().slice(0, 500), ref: String(S.off.ref1).trim(), at: Date.now() };
+    S.so = null; S.step = "final";
+    closeSheet(); finishGame(); window.scrollTo(0, 0);
+    toast("Recorded as not played – HQ notified", 3000);
+    return;
+  }
+  if (P.type === "goal") saveGoal();
+  else if (P.type === "assist") return;
+  else if (P.type === "edit") {
+    const ev = S.events.find(x => x.id === P.eventId);
+    if (ev) {
+      ev.team = P.team; ev.period = P.period;
+      if (P.kind === "goal") { ev.scorer = P.scorer || null; ev.a1 = ev.ps ? null : (P.a1 || null); }
+      else { ev.player = P.player === "bench" ? null : P.player; ev.code = P.code; ev.min = P.min; }
+      save(); renderAll(); toast("Changes saved");
+    }
+    closeSheet();
+  }
+  else {
+    const ev = addEvent({ type: "pen", team: P.team, player: P.player === "bench" ? null : P.player, code: P.code, min: P.min, clock: "" });
+    closeSheet();
+    if (ev.min !== "Minor") { P = { type: "ps", team: ev.team === "home" ? "away" : "home", penId: ev.id, step: "result" }; $("sheet").hidden = false; renderSheet(); }
+  }
+});
+$("sheet-cancel").addEventListener("click", closeSheet);
+$("sheet").addEventListener("click", e => { if (e.target.id === "sheet") closeSheet(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape" && !$("sheet").hidden) closeSheet(); });
+
+function ejectNote(pen) { if (pen && ejectedBy(pen)) toast(`${pLabel(player(pen.player))} is EJECTED – ${penStatus(pen.player).why}. Tell the referees.`, 6000); }
+function addEvent(ev) {
+  ev.id = S.nextId++; ev.period = ev.period || S.period; ev.at = Date.now(); S.events.push(ev); save(); renderAll();
+  if (ejectedBy(ev)) toast(`${pLabel(player(ev.player))} is EJECTED – ${penStatus(ev.player).why}. Tell the referees.`, 6000);
+  else toast(ev.type === "goal" ? `${GAME[ev.team].short} ${ev.ps ? "penalty shot goal" : "goal"} saved` : `${GAME[ev.team].short} penalty saved`);
+  return ev;
+}
+
+// ---------- final ----------
+function statLines(k) {
+  return dressed(k).map(p => {
+    const g = S.events.filter(e => e.type === "goal" && e.scorer === p.id).length;
+    const a = S.events.filter(e => e.type === "goal" && e.a1 === p.id).length;
+    const pim = S.events.filter(e => e.type === "pen" && e.player === p.id).length * PIM;
+    return { p, g, a, pts: g + a, pim };
+  }).sort((x, y) => y.pts - x.pts || x.p.num - y.p.num);
+}
+function renderFinal() {
+  renderSirCard();
+  const np = S.notPlayed;
+  $("signoff").hidden = !!np;
+  $("by-period-h").textContent = np ? "Game not played" : "Score by period";
+  if (np) {
+    $("by-period").innerHTML = `<div class="np-box"><b>${esc(npLabel(np, { home: GAME.home.name, away: GAME.away.name }))}</b><p>Note: ${esc(np.note)}</p><p class="hint" style="margin:0">Confirmed by referee ${esc(np.ref)}.</p></div>`;
+    $("player-lines").innerHTML = "";
+    renderResult();
+    return;
+  }
+  const pers = ["1", "2", "3"].concat(S.events.some(e => e.period === "OT") || S.period === "OT" ? ["OT"] : []);
+  $("by-period").innerHTML = `<table><thead><tr><th>Team</th>${pers.map(p => `<th>${p === "OT" ? "OT" : "P" + p}</th>`).join("")}${S.so ? "<th>SO</th>" : ""}<th class="tot">Final</th></tr></thead><tbody>
+    ${["home", "away"].map(k => `<tr><td>${esc(GAME[k].name)}</td>${pers.map(p => `<td>${goals(k, p)}</td>`).join("")}${S.so ? `<td>${S.so === k ? 1 : 0}</td>` : ""}<td class="tot">${scoreOf(k)}</td></tr>`).join("")}</tbody></table>` +
+    (S.so ? `<div class="so-note">Shootout won by <b>${esc(GAME[S.so].short)}</b>. The extra goal counts in the final score only – it isn't credited to any player.${S.final ? "" : ' <button class="del" id="so-change">Change</button>'}</div>` : "");
+  $("player-lines").innerHTML = GAME.mode === "full" ? ["home", "away"].map(k => `<div class="card"><div class="card-h"><h2>${esc(GAME[k].short)} players</h2><span class="goalies">${dressed(k).filter(p => p.goalie).length ? "Goalie: " + dressed(k).filter(p => p.goalie).map(p => "#" + esc(p.num) + " " + esc(p.last)).join(", ") : "No goalie marked"}</span></div><div class="box"><table>
+    <thead><tr><th>Player</th><th>G</th><th>A</th><th>PTS</th><th>PIM</th></tr></thead><tbody>
+    ${statLines(k).map(r => `<tr><td>#${esc(r.p.num)} ${esc(r.p.first)} ${esc(r.p.last)}${ejected(r.p.id) ? ' <span class="ej">Ejected</span>' : ""}</td><td>${r.g}</td><td>${r.a}</td><td class="tot">${r.pts}</td><td>${r.pim}</td></tr>`).join("")}
+    </tbody></table></div></div>`).join("") : "";
+  $("sign-sk-text").textContent = `Scorekeeper ${S.off.sk || "(name)"}: I confirm this game sheet is complete and the final score is ${GAME.home.short} ${scoreOf("home")}, ${GAME.away.short} ${scoreOf("away")}${S.so ? " (shootout)" : ""}.`;
+  $("sign-ref-text").textContent = `Referee ${S.off.ref1 || "(name)"}: I confirm the final score and that only checked-in, verified players played.`;
+  $("sign-sk").checked = S.signSk; $("sign-ref").checked = S.signRef;
+  $("sign-sk").disabled = $("sign-ref").disabled = S.final;
+  $("finalize").disabled = !(S.signSk && S.signRef) || S.final;
+  $("fin-blocker").textContent = S.final ? "" : (!(S.signSk && S.signRef) ? "Both the scorekeeper and referee must confirm." : "");
+  $("back-live").hidden = S.final; $("finalize").hidden = S.final;
+  renderResult();
+}
+function renderResult() {
+  $("result").hidden = !S.final;
+  if (S.final) {
+    const h = scoreOf("home"), a = scoreOf("away"), tag = S.notPlayed ? (S.notPlayed.reason === "forfeit" ? " (forfeit)" : "") : S.so ? " (SO)" : S.events.some(e => e.period === "OT") ? " (OT)" : "";
+    $("locked-text").textContent = S.notPlayed ? "✓ Recorded as not played and locked. Sent to Tournament HQ." : "✓ Game final and locked. Sent to Tournament HQ.";
+    $("result-line").textContent = S.notPlayed && S.notPlayed.reason !== "forfeit" ? (S.notPlayed.reason === "agreed" ? `${GAME.home.short} 0 – 0 ${GAME.away.short} (not played)` : "Not played – HQ decides the result")
+      : `${GAME.home.short} ${h} – ${a} ${GAME.away.short}${tag}`;
+    const nxt = currentGameFor(GAME.rink);
+    $("next-game").hidden = !nxt;
+    $("next-game").textContent = nxt ? `Start next game · ${fmtTime(startOf(nxt))}` : "";
+    $("next-hint").textContent = nxt ? `Next on Rink ${GAME.rink}: ${TEAMS[nxt.home].name} vs ${TEAMS[nxt.away].name} (${nxt.number})` : `That was the last game on Rink ${GAME.rink} today. Thanks!`;
+  }
+}
+
+function renderAll() { if (!S) return; if (!tiedInPlay()) S.so = null; renderBoard(); renderQueue(); renderSteps(); renderCheckin(); renderLive(); renderFinal(); }
+
+// ---------- events ----------
+document.querySelector(".steps").addEventListener("click", e => {
+  const b = e.target.closest("button[data-step]"); if (!b || b.disabled) return;
+  S.step = b.dataset.step; save(); renderAll();
+});
+document.querySelector("#panel-checkin").addEventListener("click", e => {
+  const g = e.target.closest("[data-gk]");
+  if (g) { const p = player(g.dataset.gk); if (p.verified && p.dressed) { p.goalie = !p.goalie; save(); renderAll(); } return; }
+  const b = e.target.closest("[data-dress]"); if (!b) return;
+  const p = player(b.dataset.dress); if (!p.verified) return;
+  p.dressed = !p.dressed; if (!p.dressed) p.goalie = false; save(); renderAll();
+});
+document.querySelector("#panel-checkin").addEventListener("change", e => {
+  if (e.target.dataset.num) { player(e.target.dataset.num).num = e.target.value.replace(/\D/g, "").slice(0, 3); save(); renderAll(); }
+});
+$("ref-count").addEventListener("change", e => { S.refCount = e.target.checked; save(); renderCheckin(); });
+function markPeriod(p) { S.periodAt = S.periodAt || {}; if (!S.periodAt[p]) S.periodAt[p] = Date.now(); }   // real time each period first starts (video clips)
+$("start").addEventListener("click", () => { if (canStart().length) return; S.step = "live"; if (!S.startedAt) S.startedAt = Date.now(); markPeriod("1"); save(); renderAll(); toast("Game on – period 1"); });
+document.querySelector(".periods").addEventListener("click", e => { const b = e.target.closest("[data-p]"); if (!b) return; S.period = b.dataset.p; markPeriod(S.period); save(); renderAll(); });
+document.querySelector("#panel-live").addEventListener("click", e => {
+  const g = e.target.closest("[data-goal]"), p = e.target.closest("[data-pen]"), d = e.target.closest("[data-del]"), as = e.target.closest("[data-assist]");
+  const ed = e.target.closest("[data-edit]");
+  if (ed) {
+    const ev = S.events.find(x => String(x.id) === ed.dataset.edit);
+    if (ev) {
+      P = { type: "edit", kind: ev.type, eventId: ev.id, team: ev.team, period: ev.period, scorer: ev.scorer || null, a1: ev.a1 || null,
+            player: ev.type === "pen" ? (ev.player || "bench") : null, code: ev.code, min: ev.min };
+      $("sheet").hidden = false; renderSheet();
+    }
+    return;
+  }
+  if (as) {
+    const ev = S.events.find(x => String(x.id) === as.dataset.assist);
+    if (ev) { P = { type: "assist", team: ev.team, eventId: ev.id }; $("sheet").hidden = false; renderSheet(); }
+    return;
+  }
+  if (g) openSheet("goal", g.dataset.goal);
+  if (p) openSheet("pen", p.dataset.pen);
+  if (d) {
+    const li = d.closest("li");
+    if (d.dataset.armed) { S.events = S.events.filter(x => String(x.id) !== d.dataset.del); save(); renderAll(); toast("Removed"); }
+    else { d.dataset.armed = "1"; d.textContent = "Tap again to remove"; d.style.color = "var(--red)"; setTimeout(() => { if (li.isConnected) renderLive(); }, 3000); }
+  }
+});
+$("to-final").addEventListener("click", () => {
+  const otPlayed = S.events.some(e => e.period === "OT") || S.period === "OT";
+  if (tiedInPlay() && S.medal && !otPlayed) { S.period = "OT"; markPeriod("OT"); save(); renderAll(); window.scrollTo(0, 0); toast("5-minute sudden-death overtime – next goal wins", 4000); return; }
+  if (tiedInPlay()) { P = { type: "so", team: "home" }; $("sheet").hidden = false; renderSheet(); return; }
+  S.so = null; S.step = "final"; save(); renderAll();
+});
+$("by-period").addEventListener("click", e => { if (e.target.id === "so-change") { P = { type: "so", team: "home" }; $("sheet").hidden = false; renderSheet(); } });
+$("back-live").addEventListener("click", () => { S.step = "live"; save(); renderAll(); });
+$("sign-sk").addEventListener("change", e => { S.signSk = e.target.checked; save(); renderFinal(); });
+$("sign-ref").addEventListener("change", e => { S.signRef = e.target.checked; save(); renderFinal(); });
+$("finalize").addEventListener("click", () => {
+  if (!(S.signSk && S.signRef)) return;
+  if (openMatchPens().length) { P = { type: "sirask", team: "home" }; $("sheet").hidden = false; renderSheet(); return; }   // strong reminder, not a block
+  finishGame();
+});
+
+// ---------- quick guide for scorekeepers (the "? How to use" button) ----------
+const K = (t, ghost) => `<span class="key${ghost ? " ghost" : ""}">${t}</span>`;
+const GUIDE = [
+  ["Check in the players", `<p>Each game starts on <b>1 Check-in</b>. The rosters are already loaded.</p><ol>
+    <li>Every verified player starts as ${K("Dressed")}. Tap it for anyone who <b>isn't</b> playing.</li>
+    <li>Fix a jersey number by tapping the number box.</li>
+    <li>Tap ${K("G", 1)} for each team's goalie.</li>
+    <li>A player shown in <b>red</b> isn't a verified member and can't play. Send the coach to Tournament HQ.</li></ol>`],
+  ["Officials, then start", `<ol>
+    <li>Pick <b>Referee 1</b> (and Referee 2) from the list.</li>
+    <li>Pick the <b>Scorekeeper</b> – that's you – and type your name.</li>
+    <li>The referee counts both benches and ticks the <b>referee check</b>.</li>
+    <li>When the ball is dropped, tap ${K("Start game at faceoff")}.</li></ol>
+    <div class="tip">The button stays grey until everything is done – the red text under it says what's missing.</div>`],
+  ["Goals", `<ol>
+    <li>Tap ${K("+ Goal")} for the team that scored.</li>
+    <li>Tap the <b>scorer's number</b>.</li>
+    <li>Tap the <b>assist's number</b>, or ${K("Unassisted", 1)}.</li></ol>
+    <div class="tip">After every goal the referee (the Trail Official) tells you the scorer and the assist – e.g. "Blue, 17, assist 7". Didn't hear it? Ask at the next stoppage. Every goal and assist goes on the players' stats.</div>`],
+  ["Penalties and periods", `<ol>
+    <li>Tap ${K("Penalty", 1)} for the team.</li>
+    <li>Tap the player (or <b>Bench</b>), the infraction, then <b>Minor</b>, <b>Major</b> or <b>Match</b>.</li>
+    <li>Majors and match penalties ask about the <b>penalty shot</b> next.</li>
+    <li>Change the period with the <b>1 · 2 · 3</b> buttons at the top of the Game screen.</li></ol>`],
+  ["Fix a mistake", `<p>Everything is in the <b>Game log</b>, newest first.</p><ol>
+    <li>${K("Edit", 1)} changes a goal or penalty, ${K("Remove", 1)} deletes it.</li>
+    <li>${K("+ Assist", 1)} adds an assist you missed.</li>
+    <li>Injury or incident? After the game, tap ${K("Incident / injury report", 1)} and write (or talk into the keyboard microphone) what happened.</li></ol>`],
+  ["End the game and sign off", `<ol>
+    <li>Tap ${K("End game")}. A tie brings up the shootout.</li>
+    <li>Check the score by period and the players' points.</li>
+    <li>You tick the <b>scorekeeper</b> box, the referee ticks theirs.</li>
+    <li>Tap ${K("Finalize game")} – it's sent to Tournament HQ.</li>
+    <li>Tap ${K("Start next game")} for the next game on this rink.</li></ol>
+    <div class="tip">Stuck? Tap <b>? Help</b> at the top any time, or ask Tournament HQ.</div>`],
+];
+let GI = 0;
+function openGuide(i) { GI = Math.max(0, Math.min(GUIDE.length - 1, i || 0)); $("guide").hidden = false; renderGuide(); }
+function renderGuide() {
+  $("guide-count").textContent = `Quick guide · ${GI + 1} of ${GUIDE.length}`;
+  $("guide-title").textContent = GUIDE[GI][0];
+  $("guide-body").className = "guide-body"; $("guide-body").innerHTML = GUIDE[GI][1];
+  $("guide-dots").innerHTML = GUIDE.map((g, i) => `<button class="${i === GI ? "on" : ""}" data-gi="${i}" aria-label="${esc(g[0])}"></button>`).join("");
+  $("guide-prev").disabled = GI === 0;
+  $("guide-next").textContent = GI === GUIDE.length - 1 ? "Done" : "Next";
+  $("guide-extra").innerHTML = GI === GUIDE.length - 1 && EVENT_ID !== "DEMO" && /^https:/.test(API) ? `<a class="del add" href="${API.split("?")[0]}?gsdemo=1" target="_blank" rel="noopener">Try a practice game</a>` : "";
+}
+$("help-btn").addEventListener("click", () => openGuide(!S ? 0 : S.step === "final" ? 5 : S.step === "live" ? 2 : 0));
+$("sk-guide").addEventListener("click", () => openGuide(0));
+$("guide-close").addEventListener("click", () => { $("guide").hidden = true; });
+$("guide-prev").addEventListener("click", () => { if (GI > 0) { GI--; renderGuide(); } });
+$("guide-next").addEventListener("click", () => { if (GI < GUIDE.length - 1) { GI++; renderGuide(); } else $("guide").hidden = true; });
+$("guide-dots").addEventListener("click", e => { const b = e.target.closest("[data-gi]"); if (b) { GI = Number(b.dataset.gi); renderGuide(); } });
+$("guide").addEventListener("click", e => { if (e.target.id === "guide") $("guide").hidden = true; });
+// Swipe left/right between cards.
+let GX = null;
+$("guide").addEventListener("touchstart", e => { GX = e.touches[0].clientX; }, { passive: true });
+$("guide").addEventListener("touchend", e => { if (GX === null) return; const dx = e.changedTouches[0].clientX - GX; GX = null;
+  if (Math.abs(dx) > 50) { GI = Math.max(0, Math.min(GUIDE.length - 1, GI + (dx < 0 ? 1 : -1))); renderGuide(); } });
+// A scorekeeper who isn't the last one at this rink gets a nudge towards the guide.
+function skNudge() {
+  const el = $("sk-new"); if (!el || !S) return;
+  const last = (DB.rinkOff && GAME && DB.rinkOff[GAME.rink]) || {};
+  const now = String(S.off.sk || "").trim().toLowerCase(), before = String(last.sk || "").trim().toLowerCase();
+  el.hidden = !(now && now !== before) || S.step !== "checkin";
+}
+document.querySelector(".officials").addEventListener("input", skNudge);
+document.querySelector(".officials").addEventListener("change", skNudge);
+
+// ---------- Special Incident Reports: match penalties, incidents, injuries ----------
+// Saved on the game (S.sirs); the web app emails the director and the Referee-in-Chief and logs it on their sheets.
+// Voice memos: Google's Apps Script frame doesn't grant microphone access, so recording is off until it runs outside that frame.
+const SIR_MEMO = false;
+const SIR_KINDS = { match: "Match penalty", injury: "Injury", incident: "Incident" };
+var REC = null;
+const sirsOf = () => Object.values(S.sirs || {});
+const openMatchPens = () => S.notPlayed ? [] : S.events.filter(e => e.type === "pen" && e.min === "Match" && !sirsOf().some(r => r.penId === e.id));
+function penText(e) { const c = CODES.find(x => x[0] === e.code); return (c ? c[1] + " (" + e.code + ")" : (e.code || "Penalty")) + " – " + e.min; }
+function openSir(opts) { P = Object.assign({ type: "sir", kind: "incident", team: "", player: "", penId: "", text: "", audio: null, rec: false, recErr: "" }, opts || {}); $("sheet").hidden = false; renderSheet(); }
+function sirClick(b) {
+  if (P.type === "sirask") {
+    if (b.dataset.sirw) { const e = openMatchPens()[0]; openSir({ penId: e ? e.id : "" }); }
+    else if (b.dataset.sirskip) { closeSheet(); finishGame(); }
+    return;
+  }
+  if (b.dataset.sirk) { P.kind = b.dataset.sirk; renderSheet(); }
+  else if (b.dataset.sirt) { P.team = P.team === b.dataset.sirt ? "" : b.dataset.sirt; P.player = ""; renderSheet(); }
+  else if (b.dataset.sirp) { P.player = P.player === b.dataset.sirp ? "" : b.dataset.sirp; renderSheet(); }
+  else if (b.dataset.rec === "start") startRec();
+  else if (b.dataset.rec === "stop") stopRec();
+}
+$("sheet-body").addEventListener("input", e => { if (P && P.type === "sir" && e.target.id === "sir-text") { P.text = e.target.value; $("sheet-save").disabled = !(P.text.trim() || P.audio) || !!P.rec || !!P.uploading; } });
+async function startRec() {
+  P.recErr = "";
+  const no = "the microphone isn't available here. Type the report, or tap the microphone on the keyboard to talk.";
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) { P.recErr = "Voice memos don't work on this device – " + no; renderSheet(); return; }
+  let stream;
+  try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
+  catch (err) { if (P) { P.recErr = "Couldn't start recording – " + no; renderSheet(); } return; }
+  if (!P || P.type !== "sir") { stream.getTracks().forEach(t => t.stop()); return; }
+  const mime = ["audio/webm", "audio/mp4", "audio/ogg"].find(x => MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(x)) || "";
+  const mr = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined), chunks = [], t0 = Date.now(), mine = P;
+  mr.ondataavailable = ev => { if (ev.data && ev.data.size) chunks.push(ev.data); };
+  mr.onstop = () => {
+    stream.getTracks().forEach(t => t.stop());
+    if (REC) clearInterval(REC.timer); REC = null;
+    const blob = new Blob(chunks, { type: mr.mimeType || mime || "audio/webm" }), secs = Math.round((Date.now() - t0) / 1000);
+    if (P !== mine) return;   // the sheet was closed
+    const fr = new FileReader();
+    fr.onload = () => { if (P !== mine) return; P.audio = { data: String(fr.result).split(",")[1], mime: blob.type, secs }; P.rec = false; renderSheet(); };
+    fr.readAsDataURL(blob);
+  };
+  mr.start();
+  P.rec = true; renderSheet();
+  REC = { mr, timer: setInterval(() => {
+    const s = Math.round((Date.now() - t0) / 1000), btn = document.querySelector('[data-rec="stop"]');
+    if (btn) btn.textContent = "■ Stop recording · " + Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+    if (s >= 180) stopRec();   // 3 minutes max
+  }, 500) };
+}
+function stopRec() { if (REC && REC.mr.state !== "inactive") REC.mr.stop(); }
+async function sendSir() {
+  if (!P || P.type !== "sir" || P.uploading) return;
+  const pen = P.penId ? S.events.find(x => x.id === P.penId) : null;
+  const team = pen ? pen.team : P.team, pid = pen ? pen.player : P.player, p = pid ? player(pid) : null;
+  const id = "s" + Date.now().toString(36);
+  const r = { id, kind: pen ? "match" : P.kind, penId: pen ? pen.id : "", pen: pen ? penText(pen) : "", period: String(pen ? pen.period : S.period || ""),
+    team: team ? GAME[team].name : "", player: p ? (String(p.first || "") + " " + String(p.last || "")).trim() : "", num: p ? String(p.num || "") : "",
+    text: String(P.text || "").trim().slice(0, 3000), ref: String(S.off.ref1 || "").trim(), at: Date.now(), audio: "" };
+  if (P.audio) {
+    P.uploading = true; renderSheet();
+    try { const res = await api({ op: "sirAudio", game: GAME.id, sir: id, mime: P.audio.mime, data: P.audio.data }); r.audio = res.file || ""; }
+    catch (err) { if (P) { P.uploading = false; renderSheet(); } toast("Couldn't send the voice memo – check the connection and try again", 4000); return; }
+  }
+  S.sirs = S.sirs || {}; S.sirs[id] = r;
+  save(); closeSheet(); renderAll();
+  toast("Report sent to the event director and the Referee-in-Chief", 3500);
+}
+function renderSirCard() {
+  const card = $("sir-card"); if (!card) return;
+  card.hidden = !!S.notPlayed; if (S.notPlayed) return;
+  const open = openMatchPens(), done = sirsOf();
+  $("sir-body").innerHTML =
+    open.map(e => `<div class="np-warn sir-open"><span>⚠ Match penalty – ${esc(GAME[e.team].short)}${e.player ? " " + esc(pLabel(player(e.player))) : ""}, ${e.period === "OT" ? "OT" : "P" + esc(e.period)}. A Special Incident Report is usually needed.</span>${S.final ? "" : `<button class="big" data-sirpen="${e.id}">Write report</button>`}</div>`).join("") +
+    done.map(r => `<div class="sir-done">✓ ${esc(SIR_KINDS[r.kind] || "Report")}${r.num || r.player ? " – " + (r.num ? "#" + esc(r.num) + " " : "") + esc(r.player) : ""}${r.team ? " (" + esc(r.team) + ")" : ""} · sent${r.audio ? " · voice memo" : ""}</div>`).join("") +
+    (!open.length && !done.length ? `<p class="hint" style="margin:0 14px 10px">No reports for this game. Write one for a match penalty, a serious injury, or anything else Tournament HQ needs to know about.</p>` : "") +
+    (S.final ? "" : `<div style="padding:0 14px 14px"><button class="big ghost" data-sirnew="1">+ Incident / injury report</button></div>`);
+}
+$("sir-card").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b || !S || S.final) return;
+  if (b.dataset.sirpen) openSir({ penId: b.dataset.sirpen });
+  else if (b.dataset.sirnew) openSir();
+});
+$("incident").addEventListener("click", () => { if (!S || S.final || S.notPlayed) return; openSir(); });
+$("tablet").addEventListener("click", e => {
+  if (!e.target.closest("[data-np]") || !S || S.final) return;
+  P = { type: "np", reason: "", team: "", note: "", confirm: false }; $("sheet").hidden = false; renderSheet();
+});
+document.querySelector(".officials").addEventListener("change", e => {
+  const s = e.target.dataset.slot; if (!s) return;
+  const v = e.target.value, o = S.off;
+  if (s === "sk") {
+    if (v === "tourney") { o.skType = "tourney"; o.skId = ""; o.sk = ""; }
+    else if (refById(v)) { o.skType = "ref"; o.skId = v; o.sk = refById(v).name; }
+    else { o.skType = ""; o.skId = ""; o.sk = ""; }
+  } else if (v === "other") { o[s + "Id"] = "other"; o[s] = ""; }
+  else if (refById(v)) { o[s + "Id"] = v; o[s] = refById(v).name; }
+  else { o[s + "Id"] = ""; o[s] = ""; }
+  save(); renderCheckin();
+  const inp = $(s + "-name"); if (!inp.hidden) inp.focus();
+});
+document.querySelector(".officials").addEventListener("input", e => {
+  const s = e.target.dataset.name; if (!s) return;
+  S.off[s] = e.target.value; save();
+  const unc = uncertified(S.off);
+  $("off-note").textContent = unc.length ? `⚠ Not certified: ${unc.join(", ")}. Tournament HQ and the Referee-in-Chief will be notified.` : "";
+  const why = canStart(); $("start").disabled = why.length > 0; $("ci-blocker").textContent = why.length ? "To start: " + why.join(" · ") : "";
+});
+function finishGame() {
+  S.final = true; S.finalAt = Date.now();
+  // Remember numbers, goalies and who sat out for each team's next game, and this rink's officials.
+  if (!S.notPlayed) ["home", "away"].forEach(k => {
+    const ros = S.roster[k];
+    DB.teamMem[GAME[k].key] = { nums: Object.fromEntries(ros.map(p => [p.id, p.num])), out: ros.filter(p => p.verified && !p.dressed).map(p => p.id),
+      goalies: ros.filter(p => p.goalie).map(p => p.id) };
+  });
+  DB.rinkOff[GAME.rink] = Object.assign({}, S.off);
+  if (STORE) { ["home", "away"].forEach(k => queueWrite("teams/" + GAME[k].key, DB.teamMem[GAME[k].key])); queueWrite("rinks/" + GAME.rink, DB.rinkOff[GAME.rink]); }
+  save(); renderAll(); if (!S.notPlayed) toast("Game final – sent to HQ");
+}
+$("next-game").addEventListener("click", () => {
+  const nxt = currentGameFor(GAME.rink); if (!nxt) return;
+  const created = !DB.games[nxt.id]; loadGame(nxt.id); if (created) save(); renderAll(); window.scrollTo(0, 0); toast(`Game ${GAME.number} ready – check in both teams`, 3000);
+});
+
+// ---------- rink queue ----------
+function stateLabel(g) {
+  const st = DB.games[g.id];
+  if (st && st.final && st.notPlayed) return ["done", st.notPlayed.reason === "forfeit" ? `Forfeit ${gScore(st, "home")}–${gScore(st, "away")}` : "Not played"];
+  if (st && st.final) return ["done", `Final ${gScore(st, "home")}–${gScore(st, "away")}`];
+  if (S && g.id === S.gid) return ["now", st && st.step !== "checkin" ? "In play" : "Check-in"];
+  return ["", "Later"];
+}
+function renderQueue() {
+  const list = rinkGames(GAME.rink);
+  const nextId = (list.find(g => !(DB.games[g.id] && DB.games[g.id].final) && g.id !== S.gid) || {}).id;
+  $("queue").innerHTML = `<div class="queue-in"><span class="ql">Rink ${GAME.rink} today</span>${list.map(g => {
+    let [cls, label] = stateLabel(g); if (g.id === nextId && cls === "") label = "Up next";
+    return `<div class="qg ${cls}"><b>${fmtTime(startOf(g))}</b><span class="st">${label}</span><small>${esc(TEAMS[g.home].short)} vs ${esc(TEAMS[g.away].short)} · ${esc(g.number)}</small></div>`;
+  }).join("")}</div>`;
+}
+
+// ---------- shared helpers for HQ ----------
+const gGoals = (st, k) => st.events.filter(e => e.type === "goal" && e.team === k).length;
+const gScore = (st, k) => st.notPlayed ? npScore(st.notPlayed, k) : gGoals(st, k) + (st.so === k ? 1 : 0);
+const gTag = st => st.notPlayed ? (st.notPlayed.reason === "forfeit" ? " (forfeit)" : " (not played)") : st.so ? " (SO)" : st.events.some(e => e.period === "OT") ? " (OT)" : "";
+const gFlags = st => { const u = uncertified(st && st.off); return u.length ? `<span class="hq-flag">⚠ Not-certified referee: ${esc(u.join(", "))}</span>` : ""; };
+function gFinal(st, g) {
+  const names = { home: TEAMS[g.home].name, away: TEAMS[g.away].name };
+  if (st.notPlayed && st.notPlayed.reason !== "forfeit") return `${esc(npLabel(st.notPlayed, names))}`;
+  return `${esc(names.home)} ${gScore(st, "home")}, ${esc(names.away)} ${gScore(st, "away")}${gTag(st)}`;
+}
+
+// ---------- HQ console ----------
+function renderHQ() {
+  const now = Date.now();
+  $("game-meta").innerHTML = `<b>${esc(EVENT.name)}</b> · ${esc(EVENT.day)}${EVENT.place ? " · " + esc(EVENT.place) : ""} · Tournament HQ`;
+  $("rink-chip").textContent = "HQ · Change";
+  $("mode-pill").textContent = "Full stats"; $("mode-pill").className = "mode";
+  $("hq-sub").textContent = `Live from the rink tablets · updated ${new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })}`;
+  $("hq-rinks").innerHTML = !SCHEDULE.length ? `<p class="hint">No games on ${esc(EVENT.day || "this day")}.</p>` : rinksToday().map(rk => {
+    const r = rk.n;
+    const list = rinkGames(r), cur = currentGameFor(r);
+    if (!cur) return `<div class="rink idle"><div class="rink-h"><b>Rink ${r}</b><small>${esc(rk.name)}</small></div><div class="rink-b"><span class="rstatus final">Done for the day</span></div></div>`;
+    const st = DB.games[cur.id], start = startOf(cur), late = Math.round((now - start) / 60000);
+    let status = "Waiting for tablet", cls = "", warn = false;
+    if (st && st.step === "checkin") status = "Checking in";
+    if (st && st.step !== "checkin") {
+      const tied = gGoals(st, "home") === gGoals(st, "away") && (st.period === "3" || st.period === "OT");
+      status = st.step === "final" ? "Signing off" : tied ? `Tied in ${st.period === "OT" ? "OT" : "P3"} · ${cur.medal && st.period !== "OT" ? "OT/shootout" : "shootout"}` : `In play · ${st.period === "OT" ? "OT" : "P" + st.period}`;
+      cls = tied ? "tie" : "live"; warn = tied;
+    }
+    const lateNote = ((!st || st.step === "checkin") && late > 5 ? `<span class="late-note">Starting ${late} min late</span>` : "") + gFlags(st) + sirFlag(st);
+    const nxt = list.find(g => g.slot > cur.slot);
+    const line = side => `<div class="rline"><span class="tl">${badge(cur[side])}</span><span class="nm">${esc(TEAMS[cur[side]].name)}</span><span class="sc">${st ? gScore(st, side) : "–"}</span></div>`;
+    return `<div class="rink ${warn || lateNote ? "warn" : ""}"><div class="rink-h"><b>Rink ${r}</b><small>${esc(rk.name)} · ${esc(cur.division)} · ${fmtTime(start)} · ${esc(cur.number)}${cur.medal ? " · Medal" : ""}</small></div>
+      <div class="rink-b"><span class="rstatus ${cls}">${status}</span>${line("home")}${line("away")}${lateNote}
+      <div class="rnext">${nxt ? `Next: ${fmtTime(startOf(nxt))} · ${esc(TEAMS[nxt.home].short)} vs ${esc(TEAMS[nxt.away].short)}` : "Last game on this rink today"}</div></div></div>`;
+  }).join("");
+  const finals = SCHEDULE.filter(g => DB.games[g.id] && DB.games[g.id].final).sort((a, b) => (DB.games[a.id].finalAt || 0) - (DB.games[b.id].finalAt || 0));
+  const todo = finals.filter(g => !DB.entered[g.id]).length;
+  $("hq-todo-count").textContent = todo ? `${todo} to enter` : finals.length ? "All entered ✓" : "No finished games yet";
+  $("hq-todo").innerHTML = finals.length ? finals.map(g => {
+    const st = DB.games[g.id], done = !!DB.entered[g.id];
+    return `<tr class="${done ? "entered" : ""}"><td>${esc(g.number)}</td><td>Rink ${g.rink}</td><td>${fmtTime(startOf(g))}</td><td>${esc(g.division)}</td>
+      <td><b>${gFinal(st, g)}</b>${sirFlag(st)}${st.notPlayed ? `<span class="hint" style="display:block;margin:0">Note: ${esc(st.notPlayed.note)} · Ref ${esc(st.notPlayed.ref)}</span>` : ""}${gFlags(st)}</td>
+      <td><button class="mini-btn ${done ? "" : "go"}" data-entered="${g.id}">${done ? "Undo" : "Mark entered"}</button></td></tr>`;
+  }).join("") : `<tr><td colspan="6" style="text-align:left;color:var(--muted)">Final scores appear here the moment a rink tablet signs off a game.</td></tr>`;
+  renderHQAlerts();
+  $("hq-all").innerHTML = SCHEDULE.slice().sort((a, b) => a.slot - b.slot || a.rink - b.rink).map(g => {
+    const st = DB.games[g.id];
+    const status = !st ? "Scheduled" : st.final && st.notPlayed && st.notPlayed.reason !== "forfeit" ? "Not played" + (DB.entered[g.id] ? " · entered" : "") : st.final ? `Final ${gScore(st, "home")}–${gScore(st, "away")}${gTag(st)}${DB.entered[g.id] ? " · entered" : ""}` : st.step === "checkin" ? "Checking in" : `In play ${gScore(st, "home")}–${gScore(st, "away")}`;
+    return `<tr><td>${fmtTime(startOf(g))}</td><td>Rink ${g.rink}</td><td>${esc(g.number)}${g.medal ? " · Medal" : ""}</td><td>${esc(g.division)}</td><td style="text-align:left">${esc(TEAMS[g.home].name)} vs ${esc(TEAMS[g.away].name)}</td><td>${status}${gFlags(st)}${sirFlag(st)}</td></tr>`;
+  }).join("");
+}
+
+// ---------- HQ: incident reports (Nov 12, 2026) ----------
+// Reports a ref sends from a rink tablet are saved on the game (S.sirs) and sync here.
+// "Seen" is shared across HQ laptops (store collection sirseen). Match penalties with no report yet are flagged too.
+let HQ_READ = {}, HQ_SHOW_SEEN = false;
+function hqIncidents() {
+  const list = [];
+  SCHEDULE.forEach(g => {
+    const st = DB.games[g.id]; if (!st || st.notPlayed) return;
+    const names = { home: TEAMS[g.home] ? TEAMS[g.home].name : "", away: TEAMS[g.away] ? TEAMS[g.away].name : "" };
+    Object.values(st.sirs || {}).forEach(r => list.push({ key: r.id, g, r, at: r.at || 0 }));
+    (st.events || []).filter(e => e.type === "pen" && e.min === "Match" && !Object.values(st.sirs || {}).some(r => r.penId === e.id))
+      .forEach(e => list.push({ key: "mp-" + g.id + "-" + e.id, g, pen: e, team: names[e.team] || "", at: e.at || st.updatedAt || 0 }));
+  });
+  return list.sort((a, b) => b.at - a.at);
+}
+function hqIncTitle(x) {
+  if (x.pen) return "Match penalty – no report yet" + (x.team ? " · " + esc(x.team) : "");
+  const r = x.r;
+  return esc(SIR_KINDS[r.kind] || "Incident report") + (r.num || r.player ? " – " + (r.num ? "#" + esc(r.num) + " " : "") + esc(r.player || "") : "") + (r.team ? " (" + esc(r.team) + ")" : "");
+}
+function hqIncMeta(x) {
+  const g = x.g, r = x.r || {};
+  return "Rink " + g.rink + " · Game " + esc(g.number) + " · " + esc(g.division) + " · " + fmtTime(startOf(g)) +
+    (r.period ? " · " + (r.period === "OT" ? "OT" : "P" + esc(r.period)) : x.pen ? " · " + (x.pen.period === "OT" ? "OT" : "P" + esc(x.pen.period)) : "") +
+    (r.ref ? " · Ref " + esc(r.ref) : "") + (r.at ? " · sent " + new Date(r.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "");
+}
+function renderHQAlerts() {
+  const el = $("hq-alerts"); if (!el) return;
+  const all = hqIncidents();
+  const unseen = all.filter(x => !DB.sirseen[x.key]), seen = all.filter(x => DB.sirseen[x.key]);
+  const card = (x, isSeen) => `<div class="hq-alert ${isSeen ? "seen" : ""}"><div class="hq-alert-h"><div><b>${isSeen ? "✓" : "⚠"} ${hqIncTitle(x)}</b><small>${hqIncMeta(x)}</small></div>
+    <div class="hq-alert-btns">${x.r ? `<button class="mini-btn" data-sirread="${esc(x.key)}">${HQ_READ[x.key] ? "Hide" : "Read report"}</button>` : ""}<button class="mini-btn ${isSeen ? "" : "go"}" data-sirseen="${esc(x.key)}">${isSeen ? "Undo seen" : "Seen"}</button></div></div>
+    ${x.r && HQ_READ[x.key] ? `<div class="hq-alert-text">${esc(x.r.pen ? x.r.pen + "\n" : "")}${esc(x.r.text || (x.r.audio ? "(voice memo – in the email)" : ""))}</div>` : ""}
+    ${x.pen ? `<small>The referee hasn't sent a Special Incident Report for this match penalty yet – check with Rink ${x.g.rink}.</small>` : ""}</div>`;
+  el.innerHTML = unseen.map(x => card(x, false)).join("") +
+    (seen.length ? `<button class="hq-seen-toggle" data-sirshow="1">${HQ_SHOW_SEEN ? "▾" : "▸"} ${seen.length} incident report${seen.length === 1 ? "" : "s"} already seen today</button>` + (HQ_SHOW_SEEN ? seen.map(x => card(x, true)).join("") : "") : "");
+}
+function sirFlag(st) {
+  if (!st || st.notPlayed) return "";
+  const n = Object.keys(st.sirs || {}).length;
+  const mp = (st.events || []).filter(e => e.type === "pen" && e.min === "Match" && !Object.values(st.sirs || {}).some(r => r.penId === e.id)).length;
+  return (n ? `<span class="hq-flag">⚠ ${n} incident report${n === 1 ? "" : "s"} – see the top of HQ</span>` : "") + (mp ? `<span class="hq-flag">⚠ Match penalty – no report yet</span>` : "");
+}
+$("hq-alerts").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  if (b.dataset.sirread) { HQ_READ[b.dataset.sirread] = !HQ_READ[b.dataset.sirread]; renderHQAlerts(); }
+  else if (b.dataset.sirshow) { HQ_SHOW_SEEN = !HQ_SHOW_SEEN; renderHQAlerts(); }
+  else if (b.dataset.sirseen && STORE) {
+    const k = b.dataset.sirseen;
+    if (DB.sirseen[k]) { delete DB.sirseen[k]; STORE.doc("sirseen/" + k).delete().catch(console.error); }
+    else { DB.sirseen[k] = true; queueWrite("sirseen/" + k, { at: Date.now() }); }
+    renderHQAlerts();
+  }
+});
+$("hq-todo").addEventListener("click", e => {
+  const b = e.target.closest("[data-entered]"); if (!b || !STORE) return;
+  const gid = b.dataset.entered;
+  if (DB.entered[gid]) { delete DB.entered[gid]; STORE.doc("entered/" + gid).delete().catch(console.error); }
+  else { DB.entered[gid] = true; queueWrite("entered/" + gid, { at: Date.now() }); }
+  renderHQ();
+});
+
+// ---------- device setup / boot ----------
+function boot() {
+  document.body.classList.remove("loading");
+  closeSheet();
+  applyEventLogo();
+  setDay(DEVICE && DEVICE.day && DAYS.includes(DEVICE.day) ? DEVICE.day : pickDay());
+  $("setup").hidden = !!DEVICE;
+  document.body.classList.toggle("hq-mode", !!(DEVICE && DEVICE.role === "hq"));
+  $("hq").hidden = !(DEVICE && DEVICE.role === "hq");
+  if (!DEVICE) {
+    const day = pickDay();
+    setDay(day);
+    $("setup-event").textContent = `${EVENT.name} · ${EVENT.day}.`;
+    $("days-lbl").hidden = $("setup-days").hidden = DAYS.length < 2;
+    $("setup-days").innerHTML = DAYS.map(d => `<button data-setday="${d}" aria-pressed="${d === day}">${esc(dayLabel(d))}</button>`).join("");
+    const rk = rinksToday();
+    $("setup-rinks").innerHTML = rk.length ? rk.map(x => { const l = rinkGames(x.n); return `<button data-setrink="${x.n}"><b>Rink ${x.n}</b><small class="fac">${esc(x.name)}</small><small>${l.length} game${l.length === 1 ? "" : "s"} · first at ${fmtTime(startOf(l[0]))}</small></button>`; }).join("")
+      : `<p class="hint">No games scheduled on ${esc(EVENT.day || "this day")} yet.</p>`;
+    return;
+  }
+  if (DEVICE.role === "hq") { renderHQ(); return; }
+  const list = rinkGames(DEVICE.rink);
+  if (!list.length) { DEVICE = null; saveDevice(); boot(); toast("No games on that rink today – pick the rink again"); return; }
+  const cur = currentGameFor(DEVICE.rink) || list.slice(-1)[0];
+  const created = !DB.games[cur.id]; loadGame(cur.id); if (created) save(); renderAll();
+}
+let SETUP_DAY = "";
+$("setup-days").addEventListener("click", e => { const b = e.target.closest("[data-setday]"); if (!b) return; SETUP_DAY = b.dataset.setday; DEVICE = null; boot(); });
+$("setup-rinks").addEventListener("click", e => { const b = e.target.closest("[data-setrink]"); if (!b) return; DEVICE = { role: "rink", rink: Number(b.dataset.setrink), day: pickDay() }; saveDevice(); boot(); toast(`This tablet is Rink ${DEVICE.rink} · ${rinkName(DEVICE.rink)}`, 2500); });
+$("setup-hq").addEventListener("click", () => { DEVICE = { role: "hq", day: pickDay() }; saveDevice(); boot(); });
+$("rink-chip").addEventListener("click", () => { P = { type: "pin", team: "home" }; $("sheet").hidden = false; renderSheet(); });
+setInterval(() => { if (!DEVICE || !STORE) return; if (DEVICE.role === "hq") renderHQ(); else if (S) renderBoard(); }, 15000);
+
+// ---------- live sync between rink tablets and HQ (shared store) ----------
+const clone = v => JSON.parse(JSON.stringify(v));
+function refreshFromStore(ownChanged) {
+  if (!DEVICE) return;
+  if (DEVICE.role === "hq") renderHQ();
+  else if (S) { if (ownChanged) renderAll(); else renderQueue(); }
+}
+// The web app answers small JSON requests (POST as plain text, like the registration page).
+async function api(body) {
+  const r = await fetch(API, { method: "POST", body: JSON.stringify(Object.assign({ action: "gs", e: EVENT_ID, k: GS_KEY }, body)) });
+  if (!r.ok) throw Object.assign(new Error("HTTP " + r.status), { code: "unavailable" });
+  const j = await r.json();
+  if (j && j.error) throw Object.assign(new Error(j.error), { code: /link isn/.test(j.error) ? "denied" : "unavailable" });
+  return j;
+}
+// A small store with the same shape the prototype used (doc / collection / onSnapshot), kept fresh by polling.
+function makeStore() {
+  const docs = {}, subs = {};
+  let ver = 0, timer = null, failing = 0;
+  const snapOf = (c, changes) => ({
+    docs: Object.keys(docs).filter(p => p.startsWith(c + "/")).map(p => ({ id: p.slice(c.length + 1), data: () => docs[p] })),
+    docChanges: () => changes,
+  });
+  const emit = (c, changes) => (subs[c] || []).forEach(fn => fn(snapOf(c, changes)));
+  async function poll() {
+    try {
+      const r = await api({ op: "poll", since: ver });
+      failing = 0; syncState(true);
+      const byCol = {};
+      (r.docs || []).forEach(d => {
+        const [c, id] = d.path.split("/");
+        if (d.deleted) delete docs[d.path]; else docs[d.path] = d.doc;
+        (byCol[c] = byCol[c] || []).push({ type: d.deleted ? "removed" : "modified", doc: { id, data: () => d.doc, metadata: { hasPendingWrites: false } } });
+      });
+      ver = Math.max(ver, r.ver || 0);
+      Object.keys(byCol).forEach(c => emit(c, byCol[c]));
+    } catch (e) { if (e.code === "denied") { syncState(false, e.message); return; } failing++; if (failing > 1) syncState(false); }
+    timer = setTimeout(poll, document.hidden ? 15000 : 4000);
+  }
+  const store = {
+    doc: path => ({
+      set: async d => { docs[path] = JSON.parse(JSON.stringify(d)); const r = await api({ op: "put", path, doc: d }); return r; },
+      delete: async () => { delete docs[path]; return api({ op: "put", path, doc: null }); },
+    }),
+    collection: c => ({
+      get: async () => snapOf(c, []),
+      onSnapshot: fn => { (subs[c] = subs[c] || []).push(fn); },
+    }),
+    start: async () => { const r = await api({ op: "poll", since: 0 }); (r.docs || []).forEach(d => { if (!d.deleted) docs[d.path] = d.doc; }); ver = r.ver || 0; timer = setTimeout(poll, 4000); },
+    pollNow: () => { clearTimeout(timer); poll(); },
+  };
+  return store;
+}
+function syncState(ok, msg) {
+  const el = $("sync-state"); if (!el) return;
+  el.parentElement.classList.toggle("off", !ok);
+  el.textContent = ok ? `${EVENT.name} · Live: rink tablets and HQ in sync` : (msg || "Offline – this tablet keeps the game and will sync when it reconnects");
+}
+function applyDay(d) {
+  EVENT = Object.assign({}, EVENT, d.event);
+  // Logos come with the first load only; keep them across refreshes.
+  const old = TEAMS; TEAMS = d.teams || {};
+  Object.keys(TEAMS).forEach(k => { if (!TEAMS[k].logo && old[k] && old[k].logo) TEAMS[k].logo = old[k].logo; });
+  ALL_GAMES = d.games || []; RINKS = d.rinks || []; DAYS = d.days || []; TODAY = d.today || ""; REFS = d.refs || [];
+}
+async function loadDay(first) {
+  const d = await api({ op: "day", logos: !!first });
+  applyDay(d);
+}
+async function connect() {
+  $("setup").hidden = true;
+  try { await loadDay(true); }
+  catch (e) {
+    console.error(e);
+    $("sync-state").parentElement.classList.add("off");
+    $("sync-state").textContent = e.message && e.code !== "unavailable" ? e.message : (e.message || "Couldn't load the event – check the connection and reload");
+    return;
+  }
+  const db = makeStore();
+  try { await db.start(); } catch (e) { console.error(e); syncState(false); }
+  STORE = db;
+  DB = freshDB();
+  (await db.collection("games").get()).docs.forEach(d => DB.games[d.id] = clone(d.data()));
+  (await db.collection("teams").get()).docs.forEach(d => DB.teamMem[d.id] = clone(d.data()));
+  (await db.collection("rinks").get()).docs.forEach(d => DB.rinkOff[d.id] = clone(d.data()));
+  (await db.collection("entered").get()).docs.forEach(d => DB.entered[d.id] = true);
+  (await db.collection("sirseen").get()).docs.forEach(d => DB.sirseen[d.id] = true);
+  syncState(true);
+  S = null; boot();
+  db.collection("games").onSnapshot(snap => {
+    let own = false;
+    snap.docChanges().forEach(ch => {
+      if (ch.type === "removed") { delete DB.games[ch.doc.id]; return; }
+      const v = clone(ch.doc.data());
+      if (S && ch.doc.id === S.gid) {
+        if ((v.updatedAt || 0) > (S.updatedAt || 0)) { S = v; DB.games[v.gid] = S; own = true; }
+      } else DB.games[ch.doc.id] = v;
+    });
+    refreshFromStore(own);
+  });
+  db.collection("teams").onSnapshot(snap => { snap.docChanges().forEach(ch => DB.teamMem[ch.doc.id] = clone(ch.doc.data())); });
+  db.collection("rinks").onSnapshot(snap => { snap.docChanges().forEach(ch => DB.rinkOff[ch.doc.id] = clone(ch.doc.data())); });
+  db.collection("sirseen").onSnapshot(snap => { snap.docChanges().forEach(ch => { if (ch.type === "removed") delete DB.sirseen[ch.doc.id]; else DB.sirseen[ch.doc.id] = true; }); refreshFromStore(false); });
+  db.collection("entered").onSnapshot(snap => { snap.docChanges().forEach(ch => { if (ch.type === "removed") delete DB.entered[ch.doc.id]; else DB.entered[ch.doc.id] = true; }); refreshFromStore(false); });
+  // Every few minutes pick up Tourney Machine changes (bracket teams, times) and new verifications.
+  setInterval(async () => {
+    try {
+      await loadDay();
+      setDay(DEVICE && DEVICE.day && DAYS.includes(DEVICE.day) ? DEVICE.day : pickDay());
+      if (S && GAME) { const g = SCHEDULE.find(x => x.id === S.gid); if (g) { GAME = gameInfo(g); mergeRoster(S, g); } }
+      if (!DEVICE) boot(); else refreshFromStore(!!S);
+    } catch (e) { console.error(e); }
+  }, 5 * 60000);
+}
+connect();
+</script>

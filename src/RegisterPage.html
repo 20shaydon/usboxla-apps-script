@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <style>
+    :root { --bg:#f2f4f7; --card:#fff; --ink:#15181d; --muted:#5d6570; --line:#d9dde3;
+            --go:#0f8a4b; --go-bg:#e6f6ed; --stop:#c62828; --stop-bg:#fdecec; --brand:#005EC4; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:var(--ink);
+           font:16px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    .hero { background:var(--brand); color:#fff; padding:22px 16px 56px; text-align:center; }
+    .hero .org { font-size:12px; letter-spacing:.1em; text-transform:uppercase; opacity:.85; }
+    .hero .logos { display:flex; justify-content:center; align-items:center; gap:12px; margin:4px 0 12px; }
+    .hero .logos img { height:96px; max-width:200px; object-fit:contain; display:block;
+                       background:#fff; padding:6px; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,.15); }
+    .hero h1 { margin:4px 0 2px; font-size:24px; line-height:1.2; }
+    .hero .dates { opacity:.85; }
+    main { max-width:480px; margin:-40px auto 0; padding:0 16px 32px; }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:18px; margin-bottom:14px;
+            box-shadow:0 2px 10px rgba(0,94,196,.08); }
+    .player { display:flex; align-items:center; gap:14px; }
+    .player img { width:64px; height:64px; object-fit:contain; border-radius:10px; border:1px solid var(--line); background:#fff; }
+    .player .init { width:64px; height:64px; border-radius:10px; background:var(--brand); color:#fff; font-weight:800;
+                    font-size:22px; display:flex; align-items:center; justify-content:center; flex:none; }
+    .player .name { font-size:21px; font-weight:800; }
+    .player .team { color:var(--muted); }
+    h2 { font-size:17px; margin:0 0 6px; }
+    label { display:block; font-size:13px; font-weight:600; color:var(--muted); margin:12px 0 4px; }
+    input { width:100%; font-size:18px; padding:12px; border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--ink); }
+    button { width:100%; margin-top:16px; font-size:17px; font-weight:700; padding:14px; border:0;
+             border-radius:8px; background:var(--brand); color:#fff; cursor:pointer; }
+    button[disabled] { opacity:.6; }
+    .result { border:2px solid; border-radius:12px; padding:16px; margin-top:16px; display:none; }
+    .result.ok { display:block; background:var(--go-bg); border-color:var(--go); }
+    .result.no { display:block; background:var(--stop-bg); border-color:var(--stop); }
+    .result .big { font-size:22px; font-weight:800; }
+    .result.ok .big { color:var(--go); }
+    .result.no .big { color:var(--stop); }
+    .join { display:block; text-align:center; margin-top:14px; background:var(--brand); color:#fff;
+            text-decoration:none; font-weight:700; padding:13px; border-radius:8px; }
+    .join.light { background:#fff; color:var(--brand); border:1px solid var(--brand); }
+    ol { padding-left:20px; margin:6px 0 0; color:var(--muted); }
+    .muted { color:var(--muted); font-size:14px; }
+    .hidden, .hero .logos img.hidden { display:none; }
+  </style>
+</head>
+<body>
+  <div class="hero">
+    <div class="logos">
+      <img id="usboxlaLogo" src="<?!= usboxlaLogo ?>" alt="USBOXLA Officially Sanctioned Event">
+      <img class="hidden" id="eventLogo" alt="">
+    </div>
+    <div class="org">USBOXLA Player Registration</div>
+    <h1 id="evName">Loading&hellip;</h1>
+    <div class="dates" id="evDates"></div>
+  </div>
+  <main>
+    <div class="card">
+      <div class="player">
+        <img class="hidden" id="teamLogo" alt="">
+        <div class="init" id="initials"></div>
+        <div>
+          <div class="name" id="who"></div>
+          <div class="team" id="teamLine"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card hidden" id="formCard">
+      <h2>Verify USBOXLA membership</h2>
+      <p class="muted" style="margin:0">Every player needs a current USBOXLA membership (it includes the player waiver).
+        Members also get their own player profile page that tracks their stats from select USBOXLA sanctioned events, including the Regional and National Championships.</p>
+      <form id="reg">
+        <label for="memberId">USBOXLA Member ID</label>
+        <input id="memberId" inputmode="numeric" autocomplete="off" required>
+        <label for="dob">Player&rsquo;s date of birth</label>
+        <input id="dob" type="date" required>
+        <button type="submit" id="go">Verify</button>
+      </form>
+      <div class="result" id="result">
+        <div class="big" id="rTitle"></div>
+        <div id="rDetail"></div>
+        <a class="join hidden" id="rJoin" target="_blank">Join or renew USBOXLA</a>
+        <p class="muted hidden" id="rProfile" style="margin:12px 0 0">Next, set up the player profile – photos, grad year, position and highlight videos.
+          It tracks stats from select USBOXLA sanctioned events, including the Regional and National Championships.
+          <a href="https://membership-usboxla.wildapricot.org/Sys/Profile" target="_blank">Log in to your USBOXLA profile</a></p>
+      </div>
+    </div>
+
+    <div class="card hidden" id="joinCard">
+      <h2>No membership yet?</h2>
+      <ol>
+        <li>Join USBOXLA and sign the waiver.</li>
+        <li>Find your Member ID in the confirmation email.</li>
+        <li>Come back to this same link and enter it above.</li>
+      </ol>
+      <p class="muted">Checkout is quick. Add photos, grad year, position and highlight videos to the player profile later, any time you log in.</p>
+      <a class="join light" id="joinLink" target="_blank">Join USBOXLA</a>
+    </div>
+  </main>
+
+  <script>
+    const T = <?= token ?>;
+    const $ = function (id) { return document.getElementById(id); };
+    const show = function (id, on) { $(id).classList.toggle('hidden', !on); };
+
+    // When embedded on the Wild Apricot site, tell that page how tall we are so it can size the frame.
+    function reportHeight() {
+      try { window.top.postMessage({ usbxHeight: document.documentElement.scrollHeight }, '*'); } catch (e) {}
+    }
+    if (window.ResizeObserver) new ResizeObserver(reportHeight).observe(document.body);
+    window.addEventListener('load', reportHeight);
+
+    function done(title, detail) {
+      show('formCard', true); show('joinCard', false);
+      $('reg').style.display = 'none';
+      $('result').className = 'result ok';
+      $('rTitle').textContent = '✅ ' + title;
+      $('rDetail').textContent = detail;
+      show('rJoin', false);
+      show('rProfile', true);
+    }
+
+    google.script.run.withSuccessHandler(function (d) {
+      if (d.error) { $('evName').textContent = 'Link not active'; $('who').textContent = d.error; return; }
+      $('evName').textContent = d.event.name;
+      $('evDates').textContent = d.event.dates;
+      if (d.eventLogo) { $('eventLogo').src = d.eventLogo; show('eventLogo', true); }
+      $('who').textContent = d.player.first + ' ' + d.player.last;
+      $('teamLine').textContent = d.team.name + ' · ' + d.team.division;
+      if (d.teamLogo) { $('teamLogo').src = d.teamLogo; show('teamLogo', true); show('initials', false); }
+      else { $('initials').textContent = (d.team.name || '?').slice(0, 2).toUpperCase(); }
+      $('joinLink').href = d.joinUrl;
+      if (d.verified) { done('Registered', d.player.first + ' is all set for the ' + d.event.name + '.'); return; }
+      if (d.finished) { $('teamLine').textContent += ' · this event has ended'; return; }
+      show('formCard', true); show('joinCard', true);
+    }).registerData(T);
+
+    $('reg').addEventListener('submit', function (e) {
+      e.preventDefault();
+      $('go').disabled = true; $('go').textContent = 'Checking…';
+      google.script.run.withSuccessHandler(function (r) {
+        $('go').disabled = false; $('go').textContent = 'Verify';
+        if (r.ok) { done(r.title, r.detail); return; }
+        $('result').className = 'result no';
+        $('rTitle').textContent = '❌ ' + r.title;
+        $('rDetail').textContent = r.detail || '';
+        if (r.joinUrl) { $('rJoin').href = r.joinUrl; show('rJoin', true); } else { show('rJoin', false); }
+      }).withFailureHandler(function (err) {
+        $('go').disabled = false; $('go').textContent = 'Verify';
+        $('result').className = 'result no';
+        $('rTitle').textContent = '❌ Couldn’t check right now';
+        $('rDetail').textContent = String(err.message || err);
+      }).registerSubmit(T, $('memberId').value, $('dob').value);
+    });
+  </script>
+</body>
+</html>

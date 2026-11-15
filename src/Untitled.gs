@@ -889,6 +889,10 @@ function rapApply_(req) {
   const phone = clean_(req.phone, 30);
   if (!phone) return { ok: false, error: 'Please enter your phone number.' };
   if (clean_(req.website, 50)) return { ok: true };   // honeypot: bots fill every field
+  // Came from a Director Sheet's referee link (?usbx_e=<event ID>): note which event, for Adam (Nov 14, 2026).
+  const evId = clean_(req.event, 40);
+  const fromEv = evId ? readEventsTab_().filter(function (e) { return e.id === evId; })[0] : null;
+  const via = fromEv ? 'Director Sheet link – ' + fromEv.name : '';
   rapTable_();
   const existing = readAll_('RefApplicants').filter(function (r) { return r.Email === email; })[0];
   const list = function (v, n) { return (Array.isArray(v) ? v : [v]).map(function (x) { return clean_(x, 60); }).filter(Boolean).join(', ').slice(0, n); };
@@ -896,7 +900,7 @@ function rapApply_(req) {
     FirstName: first, LastName: last, Phone: phone, City: clean_(req.city, 60), State: clean_(req.state, 40),
     Adult: req.adult === 'yes' ? 'Yes' : req.adult === 'no' ? 'No' : '', Years: clean_(req.years, 20),
     Experience: list(req.experience, 400), Certs: clean_(req.certs, 300), OtherSports: clean_(req.otherSports, 200),
-    Travel: clean_(req.travel, 200), Reference: clean_(req.reference, 200), Heard: clean_(req.heard, 100), Notes: clean_(req.notes, 1000),
+    Travel: clean_(req.travel, 200), Reference: clean_(req.reference, 200), Heard: [clean_(req.heard, 100), via].filter(Boolean).join(' · ').slice(0, 200), Notes: clean_(req.notes, 1000),
     Submitted: nowText_(), Approved: existing ? existing.Approved : '', InvitedAt: existing ? existing.InvitedAt : '', UpdatedAt: nowText_(),
     Status: existing ? rapStatus_(existing) : 'New', AdamNotes: existing ? existing.AdamNotes : '', DeclinedAt: existing ? existing.DeclinedAt : '' };
   const sh = table_('RefApplicants');
@@ -907,6 +911,7 @@ function rapApply_(req) {
     sendMail_(REF_CHIEF_EMAIL, 'New referee applicant: ' + first + ' ' + last, 'New referee applicant',
       [first + ' ' + last + (rec.City ? ' from ' + rec.City + (rec.State ? ', ' + rec.State : '') : '') + ' applied to become a USBOXLA referee.',
        'Experience: ' + (rec.Years || '–') + (rec.Experience ? ' · ' + rec.Experience : ''),
+       via ? 'Applied through the referee link on the ' + fromEv.name + ' Director Sheet' + (fromEv.directorName ? ' (director: ' + fromEv.directorName + ')' : '') + '.' : '',
        'Set their Status on the "' + RAP_TAB + '" tab: Contacted, Approved (sends their invite) or Declined (sends a polite note).'],
       'Open the applicants', raSheetUrl_(), null, null, { footer: 'Sent automatically when someone applies.' });
   } catch (err) { console.error('Applicant email: ' + err.message); }

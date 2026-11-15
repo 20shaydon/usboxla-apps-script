@@ -60,7 +60,8 @@ function skillLevel_(v) {
 
 /** Our team for a Tourney Machine team: same division + name; the skill level decides between same-named teams. */
 function matchTeam_(teams, division, name, tier) {
-  const c = teams.filter(function (x) { return divKey_(x.Division) === divKey_(division) && norm_(x.TeamName) === norm_(name); });
+  let c = teams.filter(function (x) { return divKey_(x.Division) === divKey_(division) && sameTeamName_(x.TeamName, name); });
+  if (c.length > 1) { const exact = c.filter(function (x) { return teamNorm_(x.TeamName) === teamNorm_(name); }); if (exact.length) c = exact; }
   if (c.length <= 1) return c[0] || null;
   return c.filter(function (x) { return tier && x.Tier === tier; })[0] || c.filter(function (x) { return !x.Tier; })[0] || c[0];
 }
@@ -320,6 +321,25 @@ function writeEventStatus_(ev, status, data, ctx) {
 /** Team names on the Teams tab are matched on letters AND numbers, so "ECE 2031" and "ECE 2032" are different teams. */
 function teamNorm_(s) { return String(s || '').toLowerCase().replace(/[^a-z0-9]/g, ''); }
 
+/**
+ * Same team name? Letters must match; numbers must match too when both names have them, so
+ * "Rock Stars 2015" ≠ "Rock Stars 2016" and "Phenom 2031" ≠ "Phenom 2032". A name with no numbers
+ * still matches one with numbers ("Monarchs" = "Monarchs '27"). Fixed Nov 14, 2026 (false "Duplicate team").
+ */
+function sameTeamName_(a, b) {
+  if (norm_(a) !== norm_(b)) return false;
+  // Numbers as year tokens: 2033 = 33. Same team when one name's numbers are all in the other's, so renames like
+  // "Monarchs 2027" → "Monarchs 2027/2028", "ECE 2033" → "ECE 33" and "NJ Sixers 33/34" → "NJ Sixers 33" still match,
+  // while "Rock Stars 2015" vs "Rock Stars 2016" don't. (Nov 14, 2026)
+  const nums = function (s) {
+    return (String(s || '').match(/\d+/g) || []).map(function (n) { return /^(19|20)\d\d$/.test(n) ? n.slice(2) : String(Number(n)); });
+  };
+  const na = nums(a), nb = nums(b);
+  if (!na.length || !nb.length) return true;
+  const within = function (x, y) { return x.every(function (n) { return y.indexOf(n) !== -1; }); };
+  return within(na, nb) || within(nb, na);
+}
+
 function scanDirectorSheet_(ev, data, ctx) {
   const sh = teamsSheet_(data);
   const last = sh.getLastRow();
@@ -342,7 +362,7 @@ function scanDirectorSheet_(ev, data, ctx) {
     // Match teams by event + exact division (U11 ≠ U13) + name, ignoring case/spacing. Two same-named teams
     // in one division are told apart by skill level (Wolfpack A / Wolfpack AA).
     const sameTeam = function (t) {
-      return t.EventID === data.EventID && divKey_(t.Division) === divKey_(division) && norm_(t.TeamName) === norm_(name) &&
+      return t.EventID === data.EventID && divKey_(t.Division) === divKey_(division) && sameTeamName_(t.TeamName, name) &&
         (!tier || !t.Tier || t.Tier === tier);
     };
     if (out.some(function (o) { return o.team && sameTeam(o.team); })) {
@@ -350,8 +370,8 @@ function scanDirectorSheet_(ev, data, ctx) {
       out.push(row);
       return;
     }
-    const key = data.EventID + '|' + divKey_(division) + '|' + norm_(name) +
-      (tier && ctx.teams.some(function (t) { return t.EventID === data.EventID && divKey_(t.Division) === divKey_(division) && norm_(t.TeamName) === norm_(name); }) ? '|' + tier : '');
+    const key = data.EventID + '|' + divKey_(division) + '|' + teamNorm_(name) +
+      (tier && ctx.teams.some(function (t) { return t.EventID === data.EventID && divKey_(t.Division) === divKey_(division) && sameTeamName_(t.TeamName, name); }) ? '|' + tier : '');
     let team = ctx.teams.filter(sameTeam)[0];
     if (!team) {
       // Same club name + same manager email as another team at this event: add a tab to
@@ -1037,7 +1057,7 @@ function reportEventData(match) {
       const shareCount = {};
       readAll_('TeamData').forEach(function (t) { shareCount[t.RosterSheetID] = (shareCount[t.RosterSheetID] || 0) + 1; });
       readAll_('TeamData').filter(function (t) { return t.EventID === e.id; }).forEach(function (t) {
-        const onTab = vals.some(function (r) { return divKey_(canonDivision_(String(r[1]))) === divKey_(t.Division) && norm_(r[0]) === norm_(t.TeamName) && (!t.Tier || !skillLevel_(r[2]) || skillLevel_(r[2]) === t.Tier); });
+        const onTab = vals.some(function (r) { return divKey_(canonDivision_(String(r[1]))) === divKey_(t.Division) && sameTeamName_(r[0], t.TeamName) && (!t.Tier || !skillLevel_(r[2]) || skillLevel_(r[2]) === t.Tier); });
         if (!onTab) console.log('  NOT ON TEAMS TAB: ' + t.TeamName + ' [' + t.Division + (t.Tier ? ' ' + t.Tier : '') + '] players ' +
           regs.filter(function (g) { return g.TeamKey === t.TeamKey; }).length + ', sheet shared by ' + shareCount[t.RosterSheetID] + ' team(s)');
       });

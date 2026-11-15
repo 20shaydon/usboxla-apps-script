@@ -108,7 +108,7 @@ function syncTmTeams_(ev, data, ctx) {
   if (last >= 2) {
     sh.getRange(2, 1, last - 1, SKILL_COL).getValues().forEach(function (r, i) {
       if (!clean_(r[0], 80)) return;
-      sheetRows.push({ row: i + 2, key: divKey_(canonDivision_(clean_(r[1], 30))) + '|' + norm_(r[0]), tier: skillLevel_(r[SKILL_COL - 1]) });
+      sheetRows.push({ row: i + 2, div: divKey_(canonDivision_(clean_(r[1], 30))), name: clean_(r[0], 80), tier: skillLevel_(r[SKILL_COL - 1]) });
     });
   }
   const YELLOW = '#FFF2B3';
@@ -121,8 +121,9 @@ function syncTmTeams_(ev, data, ctx) {
     if (!map.division || ev.divisions.indexOf(map.division) === -1) { unmapped++; return; }
     const name = clean_(team.name, 80);
     if (!name) return;
-    const key = divKey_(map.division) + '|' + norm_(name);
-    const same = sheetRows.filter(function (r) { return r.key === key; });
+    const dk = divKey_(map.division);
+    let same = sheetRows.filter(function (r) { return r.div === dk && sameTeamName_(r.name, name); });
+    if (same.length > 1) { const exact = same.filter(function (r) { return teamNorm_(r.name) === teamNorm_(name); }); if (exact.length) same = exact; }
     const hit = same.filter(function (r) { return map.tier && r.tier === map.tier; })[0] ||
       same.filter(function (r) { return !r.tier; })[0] || (same.length === 1 ? same[0] : null);
     if (hit) {

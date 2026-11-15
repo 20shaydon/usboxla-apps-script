@@ -142,6 +142,8 @@ function coachLink_(eventId, club) {
     '&usbx_r=coach&usbx_e=' + encodeURIComponent(eventId) + '&usbx_t=' + encodeURIComponent(club);
 }
 
+const REF_APPLY_URL = 'https://academy.usboxla.com/become-a-referee/';
+
 function refLink_(eventId) {
   const code = eventCodes_(eventId).refCode;
   return ACADEMY_CHECKOUT + '?pmpro_level=' + REF_LEVEL + (code ? '&discount_code=' + code : '') + '&usbx_r=ref&usbx_e=' + encodeURIComponent(eventId);
@@ -377,9 +379,8 @@ function coachDirectorTab_(ev, data, sheets, people, rows, ctx) {
   row(['Coaches & Referees – ' + ev.name]);
   row(['Updated ' + nowText_() + '. Coach certification is encouraged, not required. ✅ Verified = finished the course with an active membership.']);
   const codes = eventCodes_(data.EventID);
-  if (codes.refCode || codes.coachCode) {
-    row(['Your academy.usboxla.com codes: Referee ' + (codes.refCode || '–') + ' (Referee Level 1 Certification, $45/yr – no discount) · Coach ' +
-      (codes.coachCode || COACH_DISCOUNT) + ' (free). The links on this tab and on each team’s Coaches Certification tab already include them.']);
+  if (codes.coachCode) {
+    row(['Your academy.usboxla.com coach code: ' + codes.coachCode + ' (free). Each team’s Coaches Certification tab link already includes it.']);
   }
   row(['']);
   row(['COACHES']);
@@ -413,17 +414,47 @@ function coachDirectorTab_(ev, data, sheets, people, rows, ctx) {
   if (!nCoach) row(['(No coaches yet – each team manager has a Coaches Certification tab with their team’s free link.)']);
   row(['']);
   row(['REFEREES']);
-  row(['Your event’s referee link (for local referees you recruit – USBOXLA Referee Membership, $45):']);
-  row([refLink_(data.EventID)]);
-  row(['Message: "We use USBOXLA certified referees. Sign up and take the USBOXLA Referee Certification Course here: ' + refLink_(data.EventID) + '"']);
-  row(['Referee', 'Status', 'Course', 'Membership expires', 'How they joined']);
+  // Referees are recruited and approved by the Referee-in-Chief (Nov 14, 2026). Directors no longer get a direct
+  // membership checkout link: local referees apply, Adam approves, and the approved list shows here.
+  const applyLink = REF_APPLY_URL + '?usbx_e=' + encodeURIComponent(data.EventID);
+  row(['Referees are assigned and approved by Adam Gardner, USBOXLA Referee-in-Chief (' + REF_CHIEF_EMAIL + ').']);
+  row(['Know a local referee who wants to work your event? Send them this application – Adam reviews it, and approved referees get their membership link ($45/yr), the waiver and the Level 1 course:']);
+  row([applyLink]);
+  row(['Message: "We use USBOXLA certified referees. Apply here and mention our event: ' + applyLink + '"']);
+  row(['Referee', 'Status', 'Level 1 course', 'Membership', 'Waiver', 'How they’re listed']);
   const refs = people.filter(function (p) { return p.Role === 'ref'; });
   const refShown = {};
   let nRef = 0;
+  const refKey = PropertiesService.getScriptProperties().getProperty('ACADEMY_KEY');
+  const mdy = function (iso) { return iso ? Number(iso.slice(5, 7)) + '/' + Number(iso.slice(8, 10)) + '/' + iso.slice(0, 4) : ''; };
+  const refCols = function (p) {
+    if (!p) return ['⚠ Not on the academy yet', '', '', ''];
+    const st = coachStatus_(p, today, false);
+    const member = p.Member === 'yes' && !(p.Expires && p.Expires < today);
+    const waiver = !!p.Waiver && p.Waiver >= RA_WAIVER_SINCE;
+    return [st[0], st[1], member ? 'Active' + (p.Expires ? ' (renews ' + mdy(p.Expires) + ')' : '') : (p.Expires ? 'Expired ' + mdy(p.Expires) : 'Not active'),
+      waiver ? '✓ ' + mdy(p.Waiver) : (p.Waiver ? 'Needs the new waiver' : 'Not signed')];
+  };
+  try {
+    const apps = raApprovals_();
+    const latest = raLatest_();
+    Object.keys(apps).forEach(function (k) {
+      const a = apps[k];
+      if (a.EventID !== data.EventID || a.Approved !== 'yes') return;
+      const email = a.Key;
+      const ans = (latest[email] || {})[data.EventID] || {};
+      const hash = refKey ? emailHash_(email, refKey) : '';
+      const p = hash ? bestPerson_(refs.filter(function (x) { return x.EmailHash === hash; })) : null;
+      if (p) refShown[p.AcademyID] = true;
+      nRef++;
+      row([ans.Name || (p && p.Name) || email].concat(refCols(p), ['Approved by Adam' + (ans.Days ? ' · ' + ans.Days : '')]));
+    });
+  } catch (err) { console.error('Approved referees: ' + err.message); }
+  // Referees who joined through the old direct event link (before Nov 14, 2026) stay listed.
   refs.forEach(function (p) {
-    if (!tagsOf_(p).some(function (t) { return t.e === data.EventID; })) return;
+    if (refShown[p.AcademyID] || !tagsOf_(p).some(function (t) { return t.e === data.EventID; })) return;
     refShown[p.AcademyID] = true; nRef++;
-    row([p.Name, coachStatus_(p, today, false)[0], coachStatus_(p, today, false)[1], p.Expires || (p.Member ? 'No end date' : ''), 'Event referee link']);
+    row([p.Name].concat(refCols(p), ['Joined through the old event link']));
   });
   eventOfficials_(data.EventID).forEach(function (o) {
     const id = o.id ? o.id.replace(/^r/, '') : '';
@@ -431,10 +462,10 @@ function coachDirectorTab_(ev, data, sheets, people, rows, ctx) {
     if (id) refShown[id] = true;
     const p = id ? refs.filter(function (x) { return x.AcademyID === id; })[0] : null;
     nRef++;
-    row([o.name, o.certified ? (p ? coachStatus_(p, today, false)[0] : '✅ Verified') : '⚠ Not on the certified list', p ? coachStatus_(p, today, false)[1] : '',
-      p ? (p.Expires || '') : '', 'Worked ' + o.games + ' game' + (o.games === 1 ? '' : 's')]);
+    const c = p ? refCols(p) : [o.certified ? '✅ Verified' : '⚠ Not on the certified list', '', '', ''];
+    row([o.name].concat(c, ['Worked ' + o.games + ' game' + (o.games === 1 ? '' : 's')]));
   });
-  if (!nRef) row(['(No referees yet – referees appear here once they sign up through your link or work a game.)']);
+  if (!nRef) row(['(No referees approved yet – referees appear here once Adam approves them for this event or they work a game.)']);
   out[1][0] = 'Updated ' + nowText_() + ' · Coaches: ' + nVerified + ' of ' + nCoach + ' verified · Referees: ' + nRef +
     '. Coach certification is encouraged, not required.';
 

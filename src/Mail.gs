@@ -38,8 +38,7 @@ function dailyJobs() {
   try { importSanctionedEvents(); } catch (err) { console.error(err); }
   // …and onto the website's Events list (www.usboxla.com/tournaments/).
   try { syncWebsiteEvents(); } catch (err) { console.error(err); }
-  // Adam's Certified Referees List: refreshed sheet + email to the Referee-in-Chief.
-  try { console.log(emailCertifiedRefereesList_()); } catch (err) { console.error(err); }
+  // Adam's Certified Referees List and the Referee-in-Chief Hub tabs now run on their own trigger: refHubDaily (GameSheet.gs).
   const lock = LockService.getScriptLock();
   if (!lock.tryLock(DAILY_LOCK_WAIT_MS)) { scheduleDailyRetry_(); return; }   // another job is running: try again shortly
   try {

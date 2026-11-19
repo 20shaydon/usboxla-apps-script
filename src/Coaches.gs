@@ -84,6 +84,7 @@ function syncAcademyPeople_() {
   const rows = academyPeopleRows_(body, nowText_());
   if (!rows.length && readAll_('AcademyPeople').length > 5) throw new Error('The academy sent an empty list – kept the old one.');
   rewriteTable_('AcademyPeople', rows);
+  raAcademyRefs_.map = null;   // referee status cache (RefAvail) must see the new list
   PropertiesService.getScriptProperties().setProperty('ACADEMY_PEOPLE_SYNCED', String(Date.now()));
   PropertiesService.getScriptProperties().setProperty('ACADEMY_PEOPLE_VERSION', String(Date.now()));
   const n = function (role, cert) { return rows.filter(function (r) { return r.Role === role && (!cert || r.Certified === 'yes'); }).length; };

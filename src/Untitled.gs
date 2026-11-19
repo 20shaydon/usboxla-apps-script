@@ -110,7 +110,7 @@ function raAcademyStatus_(email, today) {
   coachTables_();
   const key = PropertiesService.getScriptProperties().getProperty('ACADEMY_KEY');
   const hash = emailHash_(email, key);
-  const p = hash ? readAll_('AcademyPeople').filter(function (r) { return r.Role === 'ref' && r.EmailHash === hash; })[0] : null;
+  const p = hash ? raAcademyRefs_()[hash] || null : null;
   const mdy = function (iso) { return iso ? Number(iso.slice(5, 7)) + '/' + Number(iso.slice(8, 10)) + '/' + iso.slice(0, 4) : ''; };
   if (!p) {
     return { found: false, certified: false, progress: 0, member: false, expires: '', waiver: false,
@@ -127,6 +127,16 @@ function raAcademyStatus_(email, today) {
       : 'Level 1 course ' + progress + '% complete – not certified yet',
     memberText: member ? 'Active' + (p.Expires ? ' (renews ' + mdy(p.Expires) + ')' : '') : (p.Expires ? 'Expired ' + mdy(p.Expires) : 'Not active'),
   };
+}
+
+/** Referee rows of AcademyPeople by email hash, read once per run (it used to be re-read for every single email,
+ *  which made the 8am referee tabs take most of half an hour). Cleared whenever AcademyPeople is rewritten. */
+function raAcademyRefs_() {
+  if (raAcademyRefs_.map) return raAcademyRefs_.map;
+  coachTables_();
+  const map = {};
+  readAll_('AcademyPeople').forEach(function (r) { if (r.Role === 'ref' && r.EmailHash && !map[r.EmailHash]) map[r.EmailHash] = r; });
+  return (raAcademyRefs_.map = map);
 }
 
 // ======================= answers =======================
@@ -737,7 +747,8 @@ function raOnEdit(e) {
       const ids = raHarvest_(sh);
       if (!ids.length) return;
       raRefreshSummary_(sh, ids);
-      ids.forEach(function (id) { try { raBuildHotelTab_(id); } catch (err) { console.error('Hotel tab ' + id + ': ' + err.message); } });
+      const model = raModel_();
+      ids.forEach(function (id) { try { raBuildHotelTab_(id, model); } catch (err) { console.error('Hotel tab ' + id + ': ' + err.message); } });
     } finally { lock.releaseLock(); }
   } catch (err) { console.error('raOnEdit: ' + err.message); }
 }
@@ -768,8 +779,8 @@ function raRefreshSummary_(sh, ids) {
 // ======================= Director Sheet: Referee Hotel Rooms =======================
 
 /** Builds the "Referee Hotel Rooms" tab on a tournament's Director Sheet (approved refs only, names only). */
-function raBuildHotelTab_(eventId) {
-  const m = raModel_().filter(function (x) { return x.ev.id === eventId; })[0];
+function raBuildHotelTab_(eventId, model) {
+  const m = (model || raModel_()).filter(function (x) { return x.ev.id === eventId; })[0];
   if (!m) return 'Not an upcoming tournament.';
   const data = readAll_('EventData').filter(function (d) { return d.EventID === eventId; })[0];
   if (!data || !data.DirectorSheetID) return 'No Director Sheet yet.';
@@ -812,9 +823,10 @@ function raBuildHotelTab_(eventId) {
 
 /** Rebuilds the hotel tab on every upcoming tournament that has approvals or notes (run from the daily job). */
 function raBuildAllHotelTabs_() {
-  raModel_().forEach(function (m) {
+  const model = raModel_();   // built once and shared (it used to be rebuilt for every tournament)
+  model.forEach(function (m) {
     if (!m.rows.some(function (x) { return x.approved; }) && !m.notes) return;
-    try { raBuildHotelTab_(m.ev.id); } catch (err) { console.error('Hotel tab ' + m.ev.name + ': ' + err.message); }
+    try { raBuildHotelTab_(m.ev.id, model); } catch (err) { console.error('Hotel tab ' + m.ev.name + ': ' + err.message); }
   });
 }
 

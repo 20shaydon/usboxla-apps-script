@@ -748,17 +748,6 @@ function emailCertifiedRefereesList_(force, to) {
     .setNote('Updated ' + mdy(today) + ' at 8am. Everyone here has passed the referee course and has a current membership.');
   sh.setFrozenRows(1);
   sh.autoResizeColumns(1, head.length);
-  try { console.log(rebuildRefAvailTab_()); } catch (err) { console.error('Referee availability tab: ' + err.message); }
-  try { raBuildAllHotelTabs_(); } catch (err) { console.error('Referee hotel tabs: ' + err.message); }
-  try { console.log(rebuildApplicantsTab_()); } catch (err) { console.error('Referee applicants tab: ' + err.message); }
-  try { console.log(rebuildBillTab_()); } catch (err) { console.error('BILL payment setup tab: ' + err.message); }
-  try { console.log(rebuildRefProfilesTab_()); } catch (err) { console.error('Referee Profiles tab: ' + err.message); }
-  try { evDaily_(); } catch (err) { console.error('Evaluation emails: ' + err.message); }
-  try { raReadinessDaily_(); } catch (err) { console.error('Readiness nudges: ' + err.message); }
-  try { console.log(backupToGitHub_()); } catch (err) { console.error('GitHub backup: ' + err.message); }
-  try { console.log(rebuildEvalTab_()); } catch (err) { console.error('Evaluations tab: ' + err.message); }
-  try { console.log(rebuildBillPaymentsTab_()); } catch (err) { console.error('BILL payments tab: ' + err.message); }
-  try { console.log(rebuildOverviewTab_()); } catch (err) { console.error('Hub overview tab: ' + err.message); }
   sendMail_(to || REF_CHIEF_EMAIL, ADAM_LIST_SUBJECT, ADAM_LIST_SUBJECT,
     ['Good morning Adam,',
      rows.length + ' referee' + (rows.length === 1 ? ' is' : 's are') + ' certified and can referee today ' +
@@ -770,8 +759,44 @@ function emailCertifiedRefereesList_(force, to) {
   return 'Certified referees list: ' + rows.length + ' referees, sent to ' + (to || REF_CHIEF_EMAIL) + '.';
 }
 
-/** Run by hand: sends today's list to Adam now (even if it already went out). */
-function sendAdamRefereesListNow() { console.log(emailCertifiedRefereesList_(true)); }
+/** Run by hand: sends today's list to Adam now (even if it already went out), then refreshes the Hub tabs. */
+function sendAdamRefereesListNow() { console.log(emailCertifiedRefereesList_(true)); refHubTabs_(); }
+
+/**
+ * Daily at 8am on its own trigger (split out of dailyJobs on Nov 19, 2026, after this part ran into the 30-minute
+ * limit two mornings in a row and took the roster reminders and Players to Watch down with it).
+ * Adam's email goes first, then the Referee-in-Chief Hub tabs are rebuilt one by one, each step timed in the log.
+ */
+function refHubDaily() {
+  try { console.log(emailCertifiedRefereesList_()); } catch (err) { console.error('Certified referees list: ' + err.message); }
+  refHubTabs_();
+}
+
+/** Run once: adds the daily 8am refHubDaily trigger (skips it if it's already there). */
+function installRefHubTrigger() {
+  const have = ScriptApp.getProjectTriggers().some(function (t) { return t.getHandlerFunction() === 'refHubDaily'; });
+  if (!have) ScriptApp.newTrigger('refHubDaily').timeBased().everyDays(1).atHour(8).create();
+  console.log(have ? 'refHubDaily trigger already installed.' : 'Installed: refHubDaily daily at 8am.');
+}
+
+function refHubTabs_() {
+  const step = function (label, fn) {
+    const t = Date.now();
+    try { const out = fn(); if (out) console.log(out); } catch (err) { console.error(label + ': ' + err.message); }
+    console.log(label + ' took ' + Math.round((Date.now() - t) / 1000) + ' s.');
+  };
+  step('Referee availability tab', rebuildRefAvailTab_);
+  step('Referee hotel tabs', raBuildAllHotelTabs_);
+  step('Referee applicants tab', rebuildApplicantsTab_);
+  step('BILL payment setup tab', rebuildBillTab_);
+  step('Referee Profiles tab', rebuildRefProfilesTab_);
+  step('Evaluation emails', evDaily_);
+  step('Readiness nudges', raReadinessDaily_);
+  step('GitHub backup', backupToGitHub_);
+  step('Evaluations tab', rebuildEvalTab_);
+  step('BILL payments tab', rebuildBillPaymentsTab_);
+  step('Hub overview tab', rebuildOverviewTab_);
+}
 
 
 // ======================= Special Incident Reports =======================

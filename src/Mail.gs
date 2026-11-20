@@ -9,7 +9,7 @@
 const REMINDER_DAYS = [14, 7, 5, 3, 2];
 const FINAL_REMINDER_DAYS = 2;
 
-const DAILY_LOCK_WAIT_MS = 120000;     // short enough to leave the job its full run time
+const DAILY_LOCK_WAIT_MS = 300000;     // 5 min: scanAll runs every 10 minutes and often holds the lock 2–5 min (the job still has ~25 min left)
 const DAILY_RETRY_MINUTES = 15;
 const DAILY_RETRY_MAX = 6;              // gives up for the day after this many tries; tomorrow's run still happens
 
